@@ -1,0 +1,27 @@
+using System;
+using System.Collections.Generic;
+using TripMind.Domain.Enums;
+
+namespace TripMind.Domain.Entities
+{
+    public class Trip
+    {
+        public Guid TripId { get; set; }
+        public Guid UserId { get; set; }
+        public string DestinationGovernorate { get; set; } = null!;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public int DurationDays { get; set; }
+        public decimal TotalBudgetEgp { get; set; }
+        public TripStatus Status { get; set; } = TripStatus.Draft;
+        public bool IsPublic { get; set; }
+        public string ShareToken { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+
+        public User User { get; set; } = null!;
+        public Budget? Budget { get; set; }
+        public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
+        public ICollection<TripLocation> TripLocations { get; set; } = new List<TripLocation>();
+        public ICollection<SavedItinerary> SavedItineraries { get; set; } = new List<SavedItinerary>();
+    }
+}
