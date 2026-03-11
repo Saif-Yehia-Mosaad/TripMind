@@ -1,10 +1,11 @@
+using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TripMind.Application.DTOs.Auth;
 using TripMind.Application.Services;
-using TripMind.Infrastructure.Services;
 
 namespace TripMind.API.Controllers
 {
@@ -14,6 +15,7 @@ namespace TripMind.API.Controllers
     public sealed class AuthController : ControllerBase
     {
         private readonly AuthService _auth;
+
         public AuthController(AuthService auth) => _auth = auth;
 
         [HttpPost("register")]
@@ -29,10 +31,29 @@ namespace TripMind.API.Controllers
         public async Task<IActionResult> Login([FromBody] LoginRequest req) =>
             Ok(await _auth.LoginAsync(req, Ip()));
 
+        [HttpPost("google")]
+        [ProducesResponseType(typeof(TokenResponse), 200)]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest req) =>
+            Ok(await _auth.GoogleLoginAsync(req.IdToken, Ip()));
+
+        [HttpPost("facebook")]
+        [ProducesResponseType(typeof(TokenResponse), 200)]
+        public async Task<IActionResult> FacebookLogin([FromBody] FacebookLoginRequest req) =>
+            Ok(await _auth.FacebookLoginAsync(req.AccessToken, Ip()));
+
         [HttpPost("refresh")]
         [ProducesResponseType(typeof(TokenResponse), 200)]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest req) =>
             Ok(await _auth.RefreshAsync(req.RefreshToken, Ip()));
+
+        [HttpPost("logout")]
+        [Authorize]
+        [ProducesResponseType(204)]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest req)
+        {
+            await _auth.LogoutAsync(Me(), req.RefreshToken);
+            return NoContent();
+        }
 
         [HttpPost("revoke")]
         [Authorize]
@@ -60,6 +81,8 @@ namespace TripMind.API.Controllers
         [ProducesResponseType(typeof(ResetPasswordResponse), 200)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req) =>
             Ok(await _auth.ResetPasswordAsync(req, Ip()));
+
+        private Guid Me() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         private string? Ip() =>
             HttpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var fwd)

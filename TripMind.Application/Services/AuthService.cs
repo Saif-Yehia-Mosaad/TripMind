@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
 using TripMind.Application.DTOs.Auth;
 using TripMind.Application.Interfaces;
@@ -28,14 +30,15 @@ namespace TripMind.Application.Services
             var now = DateTime.UtcNow;
             var user = new User
             {
-                UserId             = Guid.NewGuid(),
-                Email              = req.Email.ToLowerInvariant().Trim(),
-                DisplayName        = req.DisplayName.Trim(),
-                PasswordHash       = _hasher.Hash(req.Password),
-                RememberMe         = req.RememberMe,
+                UserId = Guid.NewGuid(),
+                Email = req.Email.ToLowerInvariant().Trim(),
+                DisplayName = req.DisplayName.Trim(),
+                PasswordHash = _hasher.Hash(req.Password),
+                RememberMe = req.RememberMe,
+                IsActive = true,
                 LanguagePreference = "AR",
-                CreatedAt          = now,
-                UpdatedAt          = now
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _db.Users.Add(user);
@@ -55,13 +58,114 @@ namespace TripMind.Application.Services
             await _db.SaveChangesAsync();
 
             if (!ok) throw new AuthException("Invalid email or password.");
+            if (!user!.IsActive) throw new AuthException("Your account has been deactivated. Please contact support.");
 
-            if (user!.RememberMe != req.RememberMe)
+            if (user.RememberMe != req.RememberMe)
             {
                 user.RememberMe = req.RememberMe;
-                user.UpdatedAt  = DateTime.UtcNow;
+                user.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
             }
+
+            return await IssueTokenPairAsync(user, ip);
+        }
+
+        public async Task<TokenResponse> GoogleLoginAsync(string idToken, string? ip = null)
+        {
+            GoogleJsonWebSignature.Payload payload;
+            try
+            {
+                payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
+            }
+            catch
+            {
+                throw new AuthException("Invalid Google token.");
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.GoogleId == payload.Subject)
+                    ?? await _db.Users.FirstOrDefaultAsync(u => u.Email == payload.Email.ToLowerInvariant());
+
+            if (user == null)
+            {
+                var now = DateTime.UtcNow;
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    Email = payload.Email.ToLowerInvariant(),
+                    DisplayName = payload.Name ?? payload.Email,
+                    ProfilePhotoUrl = payload.Picture,
+                    GoogleId = payload.Subject,
+                    PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                _db.Users.Add(user);
+            }
+            else
+            {
+                if (user.GoogleId == null) user.GoogleId = payload.Subject;
+                if (user.ProfilePhotoUrl == null) user.ProfilePhotoUrl = payload.Picture;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (!user.IsActive)
+                throw new AuthException("Your account has been deactivated. Please contact support.");
+
+            _db.AuditLogs.Add(Audit(user.UserId, "AUTH.GOOGLE_LOGIN", ip, true));
+            await _db.SaveChangesAsync();
+
+            return await IssueTokenPairAsync(user, ip);
+        }
+
+        public async Task<TokenResponse> FacebookLoginAsync(string accessToken, string? ip = null)
+        {
+            string url = $"https://graph.facebook.com/me?fields=id,name,email,picture&access_token={accessToken}";
+            using var http = new System.Net.Http.HttpClient();
+            var res = await http.GetAsync(url);
+
+            if (!res.IsSuccessStatusCode)
+                throw new AuthException("Invalid Facebook token.");
+
+            var json = await res.Content.ReadAsStringAsync();
+            var fb = System.Text.Json.JsonSerializer.Deserialize<FacebookUserInfo>(json,
+                           new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? throw new AuthException("Could not parse Facebook response.");
+
+            if (string.IsNullOrEmpty(fb.Email))
+                throw new AuthException("Facebook account has no email. Please use email registration.");
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.FacebookId == fb.Id)
+                    ?? await _db.Users.FirstOrDefaultAsync(u => u.Email == fb.Email.ToLowerInvariant());
+
+            if (user == null)
+            {
+                var now = DateTime.UtcNow;
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    Email = fb.Email.ToLowerInvariant(),
+                    DisplayName = fb.Name ?? fb.Email,
+                    ProfilePhotoUrl = fb.Picture?.Data?.Url,
+                    FacebookId = fb.Id,
+                    PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                _db.Users.Add(user);
+            }
+            else
+            {
+                if (user.FacebookId == null) user.FacebookId = fb.Id;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (!user.IsActive)
+                throw new AuthException("Your account has been deactivated. Please contact support.");
+
+            _db.AuditLogs.Add(Audit(user.UserId, "AUTH.FACEBOOK_LOGIN", ip, true));
+            await _db.SaveChangesAsync();
 
             return await IssueTokenPairAsync(user, ip);
         }
@@ -76,17 +180,17 @@ namespace TripMind.Application.Services
                 throw new AuthException("Invalid or expired refresh token.");
 
             var newRaw = _jwt.GenerateRefreshToken();
-            stored.IsRevoked       = true;
+            stored.IsRevoked = true;
             stored.ReplacedByToken = newRaw;
 
             _db.RefreshTokens.Add(new RefreshToken
             {
                 RefreshTokenId = Guid.NewGuid(),
-                UserId         = stored.UserId,
-                Token          = newRaw,
-                ExpiresAt      = DateTime.UtcNow.AddDays(_jwt.RefreshTokenLifetimeDays),
-                CreatedByIp    = ip,
-                CreatedAt      = DateTime.UtcNow
+                UserId = stored.UserId,
+                Token = newRaw,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwt.GetRefreshTokenLifetimeDays(stored.User.RememberMe)),
+                CreatedByIp = ip,
+                CreatedAt = DateTime.UtcNow
             });
 
             await _db.SaveChangesAsync();
@@ -103,6 +207,18 @@ namespace TripMind.Application.Services
             await _db.SaveChangesAsync();
         }
 
+        public async Task LogoutAsync(Guid userId, string refreshToken)
+        {
+            var token = await _db.RefreshTokens
+                .FirstOrDefaultAsync(r => r.Token == refreshToken && r.UserId == userId);
+
+            if (token != null && token.IsActive)
+                token.IsRevoked = true;
+
+            _db.AuditLogs.Add(Audit(userId, "AUTH.LOGOUT", null, true));
+            await _db.SaveChangesAsync();
+        }
+
         public async Task SendPasswordResetOtpAsync(ForgotPasswordRequest req, string? ip = null)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim());
@@ -110,8 +226,8 @@ namespace TripMind.Application.Services
 
             string otp = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
             user.PasswordResetToken = _hasher.Hash(otp);
-            user.ResetTokenExpiry   = DateTime.UtcNow.AddMinutes(15);
-            user.UpdatedAt          = DateTime.UtcNow;
+            user.ResetTokenExpiry = DateTime.UtcNow.AddMinutes(15);
+            user.UpdatedAt = DateTime.UtcNow;
 
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.FORGOT_PASSWORD", ip, true));
             await _db.SaveChangesAsync();
@@ -131,8 +247,8 @@ namespace TripMind.Application.Services
 
             string resetToken = Guid.NewGuid().ToString("N");
             user.PasswordResetToken = _hasher.Hash(resetToken);
-            user.ResetTokenExpiry   = DateTime.UtcNow.AddMinutes(10);
-            user.UpdatedAt          = DateTime.UtcNow;
+            user.ResetTokenExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.UpdatedAt = DateTime.UtcNow;
 
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.OTP_VERIFIED", ip, true));
             await _db.SaveChangesAsync();
@@ -154,10 +270,10 @@ namespace TripMind.Application.Services
             if (_hasher.Verify(req.NewPassword, user.PasswordHash))
                 throw new AuthException("New password must be different from the current password.");
 
-            user.PasswordHash       = _hasher.Hash(req.NewPassword);
+            user.PasswordHash = _hasher.Hash(req.NewPassword);
             user.PasswordResetToken = null;
-            user.ResetTokenExpiry   = null;
-            user.UpdatedAt          = DateTime.UtcNow;
+            user.ResetTokenExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
 
             var active = await _db.RefreshTokens
                 .Where(r => r.UserId == user.UserId && !r.IsRevoked)
@@ -181,11 +297,11 @@ namespace TripMind.Application.Services
             _db.RefreshTokens.Add(new RefreshToken
             {
                 RefreshTokenId = Guid.NewGuid(),
-                UserId         = user.UserId,
-                Token          = rawRefresh,
-                ExpiresAt      = DateTime.UtcNow.AddDays(_jwt.RefreshTokenLifetimeDays),
-                CreatedByIp    = ip,
-                CreatedAt      = DateTime.UtcNow
+                UserId = user.UserId,
+                Token = rawRefresh,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwt.GetRefreshTokenLifetimeDays(user.RememberMe)),
+                CreatedByIp = ip,
+                CreatedAt = DateTime.UtcNow
             });
 
             await _db.SaveChangesAsync();
@@ -196,25 +312,25 @@ namespace TripMind.Application.Services
 
         private static TokenResponse ToResponse(User u, string access, int expiresIn, string refresh) => new()
         {
-            AccessToken        = access,
-            ExpiresIn          = expiresIn,
-            RefreshToken       = refresh,
-            UserId             = u.UserId,
-            DisplayName        = u.DisplayName,
-            Email              = u.Email,
-            ProfilePhotoUrl    = u.ProfilePhotoUrl,
+            AccessToken = access,
+            ExpiresIn = expiresIn,
+            RefreshToken = refresh,
+            UserId = u.UserId,
+            DisplayName = u.DisplayName,
+            Email = u.Email,
+            ProfilePhotoUrl = u.ProfilePhotoUrl,
             LanguagePreference = u.LanguagePreference
         };
 
         private static AuditLog Audit(Guid? uid, string type, string? ip, bool ok, string? details = null) => new()
         {
             AuditLogId = Guid.NewGuid(),
-            UserId     = uid,
-            EventType  = type,
-            IpAddress  = ip,
-            Success    = ok,
-            Details    = details,
-            CreatedAt  = DateTime.UtcNow
+            UserId = uid,
+            EventType = type,
+            IpAddress = ip,
+            Success = ok,
+            Details = details,
+            CreatedAt = DateTime.UtcNow
         };
     }
 
@@ -232,5 +348,23 @@ namespace TripMind.Application.Services
     public sealed class AuthException : Exception
     {
         public AuthException(string message) : base(message) { }
+    }
+
+    internal sealed class FacebookUserInfo
+    {
+        public string Id { get; set; } = null!;
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public FacebookPicture? Picture { get; set; }
+    }
+
+    internal sealed class FacebookPicture
+    {
+        public FacebookPictureData? Data { get; set; }
+    }
+
+    internal sealed class FacebookPictureData
+    {
+        public string? Url { get; set; }
     }
 }

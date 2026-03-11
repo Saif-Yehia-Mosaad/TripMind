@@ -13,6 +13,7 @@ namespace TripMind.Domain.Entities
         public string? HomeGovernorate { get; set; }
         public string LanguagePreference { get; set; } = "AR";
         public bool RememberMe { get; set; }
+        public bool IsActive { get; set; } = true;
         public string? GoogleId { get; set; }
         public string? FacebookId { get; set; }
         public string? PasswordResetToken { get; set; }

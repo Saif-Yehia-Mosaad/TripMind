@@ -18,12 +18,10 @@ namespace TripMind.Infrastructure.Security
         private readonly string _audience;
         private const int AccessTokenMinutes = 15;
 
-        public int RefreshTokenLifetimeDays => 30;
-
         public JwtProvider(IConfiguration config)
         {
-            _secret   = config["Jwt:Secret"]   ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
-            _issuer   = config["Jwt:Issuer"]   ?? "TripMind";
+            _secret = config["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+            _issuer = config["Jwt:Issuer"] ?? "TripMind";
             _audience = config["Jwt:Audience"] ?? "TripMindUsers";
         }
 
@@ -44,7 +42,7 @@ namespace TripMind.Infrastructure.Security
                 new("governorate", user.HomeGovernorate ?? string.Empty),
             };
 
-            var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken(_issuer, _audience, claims,
                 notBefore: DateTime.UtcNow, expires: expiry, signingCredentials: creds);
@@ -57,5 +55,7 @@ namespace TripMind.Infrastructure.Security
             var bytes = RandomNumberGenerator.GetBytes(64);
             return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
         }
+
+        public int GetRefreshTokenLifetimeDays(bool rememberMe) => rememberMe ? 30 : 7;
     }
 }

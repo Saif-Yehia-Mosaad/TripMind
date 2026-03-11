@@ -6,6 +6,6 @@ namespace TripMind.Application.Interfaces
     {
         (string Token, int ExpiresInSeconds) GenerateAccessToken(User user);
         string GenerateRefreshToken();
-        int RefreshTokenLifetimeDays { get; }
+        int GetRefreshTokenLifetimeDays(bool rememberMe);
     }
 }

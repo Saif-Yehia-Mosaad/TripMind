@@ -12,6 +12,21 @@ namespace TripMind.Application.DTOs.Auth
         public bool RememberMe { get; set; }
     }
 
+    public sealed class GoogleLoginRequest
+    {
+        [Required] public string IdToken { get; set; } = null!;
+    }
+
+    public sealed class LogoutRequest
+    {
+        [Required] public string RefreshToken { get; set; } = null!;
+    }
+
+    public sealed class FacebookLoginRequest
+    {
+        [Required] public string AccessToken { get; set; } = null!;
+    }
+
     public sealed class LoginRequest
     {
         [Required][EmailAddress] public string Email { get; set; } = null!;
