@@ -1,13 +1,14 @@
-using System;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using TripMind.Application.DTOs.Location;
 using TripMind.Application.DTOs.Trip;
 using TripMind.Application.Services;
-using TripMind.Infrastructure.Services;
 using TripMind.Domain.Enums;
+using TripMind.Infrastructure.Services;
 
 namespace TripMind.API.Controllers
 {
@@ -36,9 +37,9 @@ namespace TripMind.API.Controllers
             Ok(await _trips.GetTripByIdAsync(Me, id));
 
         [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAll() =>
-            Ok(await _trips.GetUserTripsAsync(Me));
+        [ProducesResponseType(typeof(PagedResult<TripResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAll([FromQuery] TripSearchRequest req) =>
+    Ok(await _trips.GetUserTripsAsync(Me, req));
 
         [HttpPatch("{id:guid}")]
         [ProducesResponseType(typeof(TripResponse), StatusCodes.Status200OK)]

@@ -34,4 +34,14 @@ namespace TripMind.Application.DTOs.Location
         public float AvgRating { get; set; }
         public string? HiddenGemStory { get; set; }
     }
+    public sealed class PagedResult<T>
+    {
+        public IEnumerable<T> Items { get; init; } = new List<T>();
+        public int TotalCount { get; init; }
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+        public bool HasNext => Page < TotalPages;
+        public bool HasPrev => Page > 1;
+    }
 }

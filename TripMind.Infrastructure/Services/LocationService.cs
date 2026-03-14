@@ -14,7 +14,7 @@ namespace TripMind.Infrastructure.Services
         private readonly TripMindDbContext _db;
         public LocationService(TripMindDbContext db) => _db = db;
 
-        public async Task<List<LocationResponse>> SearchAsync(LocationSearchRequest req)
+        public async Task<PagedResult<LocationResponse>> SearchAsync(LocationSearchRequest req)
         {
             var query = _db.Locations.AsQueryable();
 
@@ -29,13 +29,15 @@ namespace TripMind.Infrastructure.Services
 
             if (req.MaxPriceEgp.HasValue)
                 query = query.Where(l =>
-                    (l.Category == LocationCategory.Hotel       && l.AvgPricePerNightEgp <= req.MaxPriceEgp) ||
-                    (l.Category == LocationCategory.Restaurant  && l.AvgMealPriceEgp     <= req.MaxPriceEgp) ||
-                    (l.Category == LocationCategory.Park && (l.EntryFeeEgp ?? 0)  <= req.MaxPriceEgp));
+                    (l.Category == LocationCategory.Hotel && l.AvgPricePerNightEgp <= req.MaxPriceEgp) ||
+                    (l.Category == LocationCategory.Restaurant && l.AvgMealPriceEgp <= req.MaxPriceEgp) ||
+                    (l.Category == LocationCategory.Park && (l.EntryFeeEgp ?? 0) <= req.MaxPriceEgp));
 
             if (!string.IsNullOrWhiteSpace(req.Search))
                 query = query.Where(l =>
                     l.NameEn.Contains(req.Search) || l.NameAr.Contains(req.Search));
+
+            var total = await query.CountAsync();
 
             var locations = await query
                 .OrderByDescending(l => l.AvgRating)
@@ -44,26 +46,34 @@ namespace TripMind.Infrastructure.Services
                 .Include(l => l.HiddenGem)
                 .ToListAsync();
 
-            return locations.Select(l => new LocationResponse
+            var items = locations.Select(l => new LocationResponse
             {
-                LocationId          = l.LocationId,
-                NameEn              = l.NameEn,
-                NameAr              = l.NameAr,
-                Category            = l.Category.ToString(),
-                Governorate         = l.Governorate,
-                Latitude            = l.Latitude,
-                Longitude           = l.Longitude,
-                DescriptionEn       = l.DescriptionEn,
-                DescriptionAr       = l.DescriptionAr,
-                EntryFeeEgp         = l.EntryFeeEgp,
+                LocationId = l.LocationId,
+                NameEn = l.NameEn,
+                NameAr = l.NameAr,
+                Category = l.Category.ToString(),
+                Governorate = l.Governorate,
+                Latitude = l.Latitude,
+                Longitude = l.Longitude,
+                DescriptionEn = l.DescriptionEn,
+                DescriptionAr = l.DescriptionAr,
+                EntryFeeEgp = l.EntryFeeEgp,
                 AvgPricePerNightEgp = l.AvgPricePerNightEgp,
-                AvgMealPriceEgp     = l.AvgMealPriceEgp,
-                OpeningHours        = l.OpeningHours,
-                IsHiddenGem         = l.IsHiddenGem,
-                PopularityScore     = l.PopularityScore,
-                AvgRating           = l.AvgRating,
-                HiddenGemStory      = l.HiddenGem?.Story
+                AvgMealPriceEgp = l.AvgMealPriceEgp,
+                OpeningHours = l.OpeningHours,
+                IsHiddenGem = l.IsHiddenGem,
+                PopularityScore = l.PopularityScore,
+                AvgRating = l.AvgRating,
+                HiddenGemStory = l.HiddenGem?.Story
             }).ToList();
+
+            return new PagedResult<LocationResponse>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = req.Page,
+                PageSize = req.PageSize
+            };
         }
 
         public async Task<LocationResponse> GetByIdAsync(Guid locationId)
@@ -75,23 +85,23 @@ namespace TripMind.Infrastructure.Services
 
             return new LocationResponse
             {
-                LocationId          = l.LocationId,
-                NameEn              = l.NameEn,
-                NameAr              = l.NameAr,
-                Category            = l.Category.ToString(),
-                Governorate         = l.Governorate,
-                Latitude            = l.Latitude,
-                Longitude           = l.Longitude,
-                DescriptionEn       = l.DescriptionEn,
-                DescriptionAr       = l.DescriptionAr,
-                EntryFeeEgp         = l.EntryFeeEgp,
+                LocationId = l.LocationId,
+                NameEn = l.NameEn,
+                NameAr = l.NameAr,
+                Category = l.Category.ToString(),
+                Governorate = l.Governorate,
+                Latitude = l.Latitude,
+                Longitude = l.Longitude,
+                DescriptionEn = l.DescriptionEn,
+                DescriptionAr = l.DescriptionAr,
+                EntryFeeEgp = l.EntryFeeEgp,
                 AvgPricePerNightEgp = l.AvgPricePerNightEgp,
-                AvgMealPriceEgp     = l.AvgMealPriceEgp,
-                OpeningHours        = l.OpeningHours,
-                IsHiddenGem         = l.IsHiddenGem,
-                PopularityScore     = l.PopularityScore,
-                AvgRating           = l.AvgRating,
-                HiddenGemStory      = l.HiddenGem?.Story
+                AvgMealPriceEgp = l.AvgMealPriceEgp,
+                OpeningHours = l.OpeningHours,
+                IsHiddenGem = l.IsHiddenGem,
+                PopularityScore = l.PopularityScore,
+                AvgRating = l.AvgRating,
+                HiddenGemStory = l.HiddenGem?.Story
             };
         }
 
@@ -104,21 +114,24 @@ namespace TripMind.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(governorate))
                 query = query.Where(l => l.Governorate == governorate);
 
-            var gems = await query.OrderByDescending(l => l.AvgRating).Take(20).ToListAsync();
+            var gems = await query
+                .OrderByDescending(l => l.AvgRating)
+                .Take(20)
+                .ToListAsync();
 
             return gems.Select(l => new LocationResponse
             {
-                LocationId      = l.LocationId,
-                NameEn          = l.NameEn,
-                NameAr          = l.NameAr,
-                Category        = l.Category.ToString(),
-                Governorate     = l.Governorate,
-                Latitude        = l.Latitude,
-                Longitude       = l.Longitude,
-                IsHiddenGem     = true,
-                AvgRating       = l.AvgRating,
+                LocationId = l.LocationId,
+                NameEn = l.NameEn,
+                NameAr = l.NameAr,
+                Category = l.Category.ToString(),
+                Governorate = l.Governorate,
+                Latitude = l.Latitude,
+                Longitude = l.Longitude,
+                IsHiddenGem = true,
+                AvgRating = l.AvgRating,
                 PopularityScore = l.PopularityScore,
-                HiddenGemStory  = l.HiddenGem?.Story
+                HiddenGemStory = l.HiddenGem?.Story
             }).ToList();
         }
     }

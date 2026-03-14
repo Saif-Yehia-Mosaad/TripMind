@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using TripMind.Domain.Enums;
 
 namespace TripMind.Application.DTOs.Trip
 {
@@ -11,6 +12,22 @@ namespace TripMind.Application.DTOs.Trip
         [Required] public DateTime EndDate { get; set; }
         [Required][Range(1, 10000000)] public decimal TotalBudgetEgp { get; set; }
         public List<string> Interests { get; set; } = new();
+    }
+
+    public sealed class UpdateTripRequest
+    {
+        public string? DestinationGovernorate { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        [Range(1, 10000000)] public decimal? TotalBudgetEgp { get; set; }
+        public bool? IsPublic { get; set; }
+    }
+
+    public sealed class TripSearchRequest
+    {
+        public TripStatus? Status { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
     }
 
     public sealed class TripResponse
@@ -59,13 +76,3 @@ namespace TripMind.Application.DTOs.Trip
         public bool IsHiddenGem { get; set; }
     }
 }
-
-    public sealed class UpdateTripRequest
-    {
-        public string? DestinationGovernorate { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        [System.ComponentModel.DataAnnotations.Range(1, 10000000)]
-        public decimal? TotalBudgetEgp { get; set; }
-        public bool? IsPublic { get; set; }
-    }

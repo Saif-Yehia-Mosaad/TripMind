@@ -1,9 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+using TripMind.Application.DTOs.Location;
 using TripMind.Application.DTOs.Trip;
 using TripMind.Domain.Entities;
 using TripMind.Domain.Enums;
@@ -79,16 +80,31 @@ namespace TripMind.Infrastructure.Services
             return MapToResponse(trip);
         }
 
-        public async Task<List<TripResponse>> GetUserTripsAsync(Guid userId)
+        public async Task<PagedResult<TripResponse>> GetUserTripsAsync(Guid userId, TripSearchRequest req)
         {
-            var trips = await _db.Trips
+            var query = _db.Trips
                 .Include(t => t.Budget)
                 .Include(t => t.TripDays).ThenInclude(td => td.TripLocations).ThenInclude(tl => tl.Location)
-                .Where(t => t.UserId == userId)
+                .Where(t => t.UserId == userId);
+
+            if (req.Status.HasValue)
+                query = query.Where(t => t.Status == req.Status.Value);
+
+            var total = await query.CountAsync();
+
+            var trips = await query
                 .OrderByDescending(t => t.CreatedAt)
+                .Skip((req.Page - 1) * req.PageSize)
+                .Take(req.PageSize)
                 .ToListAsync();
 
-            return trips.Select(MapToResponse).ToList();
+            return new PagedResult<TripResponse>
+            {
+                Items = trips.Select(MapToResponse).ToList(),
+                TotalCount = total,
+                Page = req.Page,
+                PageSize = req.PageSize
+            };
         }
 
         public async Task DeleteTripAsync(Guid userId, Guid tripId)

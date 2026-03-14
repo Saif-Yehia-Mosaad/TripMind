@@ -23,6 +23,7 @@ builder.Services.AddDbContext<TripMindDbContext>(opt =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("TripMind.Infrastructure").CommandTimeout(30)));
 
+builder.Services.AddHttpClient<AiService>();
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<TripMindDbContext>());
 builder.Services.AddScoped<IJwtProvider,    JwtProvider>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
