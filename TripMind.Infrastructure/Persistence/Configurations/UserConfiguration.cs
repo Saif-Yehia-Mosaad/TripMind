@@ -19,8 +19,14 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(u => u.HomeGovernorate).HasMaxLength(100);
             e.Property(u => u.LanguagePreference).HasMaxLength(2).HasDefaultValue("AR");
             e.Property(u => u.RememberMe).HasDefaultValue(false);
+            e.Property(u => u.IsActive).HasDefaultValue(true);
             e.Property(u => u.GoogleId).HasMaxLength(128);
             e.Property(u => u.FacebookId).HasMaxLength(128);
+            e.Property(u => u.IsEmailVerified).HasDefaultValue(false);
+            e.Property(u => u.EmailVerificationOtp).HasMaxLength(6);
+            e.Property(u => u.TwoFactorEnabled).HasDefaultValue(false);
+            e.Property(u => u.TwoFactorOtp).HasMaxLength(6);
+            e.Property(u => u.FailedLoginAttempts).HasDefaultValue(0);
             e.Property(u => u.PasswordResetToken).HasMaxLength(512);
             e.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             e.Property(u => u.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");

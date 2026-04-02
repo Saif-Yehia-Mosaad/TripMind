@@ -16,8 +16,21 @@ namespace TripMind.Domain.Entities
         public bool IsActive { get; set; } = true;
         public string? GoogleId { get; set; }
         public string? FacebookId { get; set; }
+
+        public bool IsEmailVerified { get; set; } = false;
+        public string? EmailVerificationOtp { get; set; }
+        public DateTime? EmailOtpExpiry { get; set; }
+
+        public bool TwoFactorEnabled { get; set; } = false;
+        public string? TwoFactorOtp { get; set; }
+        public DateTime? TwoFactorOtpExpiry { get; set; }
+
+        public int FailedLoginAttempts { get; set; } = 0;
+        public DateTime? LockoutEnd { get; set; }
+
         public string? PasswordResetToken { get; set; }
         public DateTime? ResetTokenExpiry { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 

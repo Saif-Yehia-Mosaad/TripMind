@@ -1,17 +1,25 @@
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using TripMind.Application.Services;
 
 namespace TripMind.Infrastructure.Email
 {
     public sealed class StubEmailSender : IEmailSender
     {
-        private readonly ILogger<StubEmailSender> _logger;
-        public StubEmailSender(ILogger<StubEmailSender> logger) => _logger = logger;
-
         public Task SendPasswordResetOtpAsync(string toEmail, string displayName, string otp)
         {
-            _logger.LogInformation("[EMAIL-STUB] OTP {Otp} -> {Email}", otp, toEmail);
+            System.Console.WriteLine($"[STUB EMAIL] Password Reset OTP for {toEmail}: {otp}");
+            return Task.CompletedTask;
+        }
+
+        public Task SendEmailVerificationOtpAsync(string toEmail, string displayName, string otp)
+        {
+            System.Console.WriteLine($"[STUB EMAIL] Email Verification OTP for {toEmail}: {otp}");
+            return Task.CompletedTask;
+        }
+
+        public Task SendTwoFactorOtpAsync(string toEmail, string displayName, string otp)
+        {
+            System.Console.WriteLine($"[STUB EMAIL] 2FA OTP for {toEmail}: {otp}");
             return Task.CompletedTask;
         }
     }

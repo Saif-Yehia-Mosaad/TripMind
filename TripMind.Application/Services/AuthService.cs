@@ -17,17 +17,22 @@ namespace TripMind.Application.Services
         private readonly IPasswordHasher _hasher;
         private readonly IEmailSender _email;
 
+        private const int MaxFailedAttempts = 5;
+        private const int LockoutMinutes = 15;
+
         public AuthService(IAppDbContext db, IJwtProvider jwt, IPasswordHasher hasher, IEmailSender email)
         {
             _db = db; _jwt = jwt; _hasher = hasher; _email = email;
         }
 
-        public async Task<TokenResponse> RegisterAsync(RegisterRequest req, string? ip = null)
+        public async Task<MessageResponse> RegisterAsync(RegisterRequest req, string? ip = null)
         {
             if (await _db.Users.AnyAsync(u => u.Email == req.Email.ToLowerInvariant().Trim()))
                 throw new AuthException("An account with this email already exists.");
 
             var now = DateTime.UtcNow;
+            string otp = GenerateOtp();
+
             var user = new User
             {
                 UserId = Guid.NewGuid(),
@@ -36,6 +41,9 @@ namespace TripMind.Application.Services
                 PasswordHash = _hasher.Hash(req.Password),
                 RememberMe = req.RememberMe,
                 IsActive = true,
+                IsEmailVerified = false,
+                EmailVerificationOtp = _hasher.Hash(otp),
+                EmailOtpExpiry = now.AddMinutes(15),
                 LanguagePreference = "AR",
                 CreatedAt = now,
                 UpdatedAt = now
@@ -45,42 +53,236 @@ namespace TripMind.Application.Services
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.REGISTER", ip, true));
             await _db.SaveChangesAsync();
 
-            return await IssueTokenPairAsync(user, ip);
+            await _email.SendEmailVerificationOtpAsync(user.Email, user.DisplayName, otp);
+
+            return new MessageResponse { Message = "Registration successful. Please check your email to verify your account." };
         }
 
-        public async Task<TokenResponse> LoginAsync(LoginRequest req, string? ip = null)
+        public async Task<object> LoginAsync(LoginRequest req, string? ip = null)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim());
+
+            if (user != null && user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+                throw new AuthException($"Account is locked. Try again after {user.LockoutEnd.Value:HH:mm} UTC.");
+
             bool ok = user != null && _hasher.Verify(req.Password, user.PasswordHash);
 
-            _db.AuditLogs.Add(Audit(user?.UserId, "AUTH.LOGIN", ip, ok,
-                ok ? null : $"Failed attempt for: {req.Email}"));
-            await _db.SaveChangesAsync();
+            if (!ok)
+            {
+                if (user != null)
+                {
+                    user.FailedLoginAttempts++;
+                    if (user.FailedLoginAttempts >= MaxFailedAttempts)
+                    {
+                        user.LockoutEnd = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+                        user.FailedLoginAttempts = 0;
+                    }
+                    user.UpdatedAt = DateTime.UtcNow;
+                }
+                _db.AuditLogs.Add(Audit(user?.UserId, "AUTH.LOGIN", ip, false, $"Failed attempt for: {req.Email}"));
+                await _db.SaveChangesAsync();
+                throw new AuthException("Invalid email or password.");
+            }
 
-            if (!ok) throw new AuthException("Invalid email or password.");
-            if (!user!.IsActive) throw new AuthException("Your account has been deactivated. Please contact support.");
+            if (!user!.IsActive)
+                throw new AuthException("Your account has been deactivated. Please contact support.");
+
+            if (!user.IsEmailVerified)
+                throw new AuthException("Please verify your email before logging in.");
+
+            user.FailedLoginAttempts = 0;
+            user.LockoutEnd = null;
+
+            if (user.TwoFactorEnabled)
+            {
+                string otp = GenerateOtp();
+                user.TwoFactorOtp = _hasher.Hash(otp);
+                user.TwoFactorOtpExpiry = DateTime.UtcNow.AddMinutes(10);
+                user.UpdatedAt = DateTime.UtcNow;
+                _db.AuditLogs.Add(Audit(user.UserId, "AUTH.LOGIN_2FA_SENT", ip, true));
+                await _db.SaveChangesAsync();
+                await _email.SendTwoFactorOtpAsync(user.Email, user.DisplayName, otp);
+                return new PendingTwoFactorResponse { Email = user.Email };
+            }
 
             if (user.RememberMe != req.RememberMe)
             {
                 user.RememberMe = req.RememberMe;
                 user.UpdatedAt = DateTime.UtcNow;
-                await _db.SaveChangesAsync();
             }
 
+            _db.AuditLogs.Add(Audit(user.UserId, "AUTH.LOGIN", ip, true));
+            await _db.SaveChangesAsync();
+
             return await IssueTokenPairAsync(user, ip);
+        }
+
+        public async Task<TokenResponse> VerifyLoginOtpAsync(LoginOtpRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim())
+                ?? throw new AuthException("Invalid request.");
+
+            if (user.TwoFactorOtpExpiry == null || user.TwoFactorOtpExpiry < DateTime.UtcNow)
+                throw new AuthException("OTP has expired. Please login again.");
+
+            if (user.TwoFactorOtp == null || !_hasher.Verify(req.Otp, user.TwoFactorOtp))
+                throw new AuthException("Invalid OTP.");
+
+            user.TwoFactorOtp = null;
+            user.TwoFactorOtpExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _db.AuditLogs.Add(Audit(user.UserId, "AUTH.LOGIN_2FA_VERIFIED", ip, true));
+            await _db.SaveChangesAsync();
+
+            return await IssueTokenPairAsync(user, ip);
+        }
+
+        public async Task<MessageResponse> VerifyEmailAsync(VerifyEmailOtpRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim())
+                ?? throw new AuthException("Invalid request.");
+
+            if (user.IsEmailVerified)
+                return new MessageResponse { Message = "Email is already verified." };
+
+            if (user.EmailOtpExpiry == null || user.EmailOtpExpiry < DateTime.UtcNow)
+                throw new AuthException("OTP has expired. Please request a new one.");
+
+            if (user.EmailVerificationOtp == null || !_hasher.Verify(req.Otp, user.EmailVerificationOtp))
+                throw new AuthException("Invalid OTP.");
+
+            user.IsEmailVerified = true;
+            user.EmailVerificationOtp = null;
+            user.EmailOtpExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _db.AuditLogs.Add(Audit(user.UserId, "AUTH.EMAIL_VERIFIED", ip, true));
+            await _db.SaveChangesAsync();
+
+            return new MessageResponse { Message = "Email verified successfully. You can now login." };
+        }
+
+        public async Task<MessageResponse> ResendEmailOtpAsync(ResendEmailOtpRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim());
+            if (user == null || user.IsEmailVerified) { await Task.Delay(200); return new MessageResponse { Message = "If that email is registered and unverified, a new OTP has been sent." }; }
+
+            string otp = GenerateOtp();
+            user.EmailVerificationOtp = _hasher.Hash(otp);
+            user.EmailOtpExpiry = DateTime.UtcNow.AddMinutes(15);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            await _email.SendEmailVerificationOtpAsync(user.Email, user.DisplayName, otp);
+
+            return new MessageResponse { Message = "If that email is registered and unverified, a new OTP has been sent." };
+        }
+
+        public async Task<MessageResponse> InitiateTwoFactorAsync(Guid userId, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new AuthException("User not found.");
+
+            if (user.TwoFactorEnabled)
+                throw new AuthException("2FA is already enabled.");
+
+            string otp = GenerateOtp();
+            user.TwoFactorOtp = _hasher.Hash(otp);
+            user.TwoFactorOtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            await _email.SendTwoFactorOtpAsync(user.Email, user.DisplayName, otp);
+
+            return new MessageResponse { Message = "OTP sent to your email. Please confirm to enable 2FA." };
+        }
+
+        public async Task<MessageResponse> ConfirmTwoFactorAsync(Guid userId, TwoFactorConfirmRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new AuthException("User not found.");
+
+            if (user.TwoFactorOtpExpiry == null || user.TwoFactorOtpExpiry < DateTime.UtcNow)
+                throw new AuthException("OTP has expired. Please initiate 2FA again.");
+
+            if (user.TwoFactorOtp == null || !_hasher.Verify(req.Otp, user.TwoFactorOtp))
+                throw new AuthException("Invalid OTP.");
+
+            user.TwoFactorEnabled = true;
+            user.TwoFactorOtp = null;
+            user.TwoFactorOtpExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _db.AuditLogs.Add(Audit(userId, "AUTH.2FA_ENABLED", ip, true));
+            await _db.SaveChangesAsync();
+
+            return new MessageResponse { Message = "Two-factor authentication has been enabled." };
+        }
+
+        public async Task<MessageResponse> DisableTwoFactorAsync(Guid userId, TwoFactorDisableRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new AuthException("User not found.");
+
+            if (!user.TwoFactorEnabled)
+                throw new AuthException("2FA is not enabled.");
+
+            if (!_hasher.Verify(req.Password, user.PasswordHash))
+                throw new AuthException("Invalid password.");
+
+            user.TwoFactorEnabled = false;
+            user.TwoFactorOtp = null;
+            user.TwoFactorOtpExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _db.AuditLogs.Add(Audit(userId, "AUTH.2FA_DISABLED", ip, true));
+            await _db.SaveChangesAsync();
+
+            return new MessageResponse { Message = "Two-factor authentication has been disabled." };
+        }
+
+        public async Task<MessageResponse> ResendTwoFactorOtpAsync(string email, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email.ToLowerInvariant().Trim());
+            if (user == null) { await Task.Delay(200); return new MessageResponse { Message = "If valid, a new OTP has been sent." }; }
+
+            string otp = GenerateOtp();
+            user.TwoFactorOtp = _hasher.Hash(otp);
+            user.TwoFactorOtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            await _email.SendTwoFactorOtpAsync(user.Email, user.DisplayName, otp);
+
+            return new MessageResponse { Message = "If valid, a new OTP has been sent." };
+        }
+
+        public async Task<MessageResponse> ChangePasswordAsync(Guid userId, ChangePasswordRequest req, string? ip = null)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new AuthException("User not found.");
+
+            if (!_hasher.Verify(req.CurrentPassword, user.PasswordHash))
+                throw new AuthException("Current password is incorrect.");
+
+            if (_hasher.Verify(req.NewPassword, user.PasswordHash))
+                throw new AuthException("New password must be different from the current password.");
+
+            user.PasswordHash = _hasher.Hash(req.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _db.AuditLogs.Add(Audit(userId, "AUTH.PASSWORD_CHANGED", ip, true));
+            await _db.SaveChangesAsync();
+
+            return new MessageResponse { Message = "Password changed successfully." };
         }
 
         public async Task<TokenResponse> GoogleLoginAsync(string idToken, string? ip = null)
         {
             GoogleJsonWebSignature.Payload payload;
-            try
-            {
-                payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
-            }
-            catch
-            {
-                throw new AuthException("Invalid Google token.");
-            }
+            try { payload = await GoogleJsonWebSignature.ValidateAsync(idToken); }
+            catch { throw new AuthException("Invalid Google token."); }
 
             var user = await _db.Users.FirstOrDefaultAsync(u => u.GoogleId == payload.Subject)
                     ?? await _db.Users.FirstOrDefaultAsync(u => u.Email == payload.Email.ToLowerInvariant());
@@ -97,6 +299,7 @@ namespace TripMind.Application.Services
                     GoogleId = payload.Subject,
                     PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
@@ -106,6 +309,7 @@ namespace TripMind.Application.Services
             {
                 if (user.GoogleId == null) user.GoogleId = payload.Subject;
                 if (user.ProfilePhotoUrl == null) user.ProfilePhotoUrl = payload.Picture;
+                user.IsEmailVerified = true;
                 user.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -150,6 +354,7 @@ namespace TripMind.Application.Services
                     FacebookId = fb.Id,
                     PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
@@ -158,6 +363,7 @@ namespace TripMind.Application.Services
             else
             {
                 if (user.FacebookId == null) user.FacebookId = fb.Id;
+                user.IsEmailVerified = true;
                 user.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -224,7 +430,7 @@ namespace TripMind.Application.Services
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email.ToLowerInvariant().Trim());
             if (user == null) { await Task.Delay(200); return; }
 
-            string otp = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+            string otp = GenerateOtp();
             user.PasswordResetToken = _hasher.Hash(otp);
             user.ResetTokenExpiry = DateTime.UtcNow.AddMinutes(15);
             user.UpdatedAt = DateTime.UtcNow;
@@ -319,8 +525,13 @@ namespace TripMind.Application.Services
             DisplayName = u.DisplayName,
             Email = u.Email,
             ProfilePhotoUrl = u.ProfilePhotoUrl,
-            LanguagePreference = u.LanguagePreference
+            LanguagePreference = u.LanguagePreference,
+            IsEmailVerified = u.IsEmailVerified,
+            TwoFactorEnabled = u.TwoFactorEnabled
         };
+
+        private static string GenerateOtp() =>
+            RandomNumberGenerator.GetInt32(100000, 999999).ToString();
 
         private static AuditLog Audit(Guid? uid, string type, string? ip, bool ok, string? details = null) => new()
         {
@@ -343,6 +554,8 @@ namespace TripMind.Application.Services
     public interface IEmailSender
     {
         Task SendPasswordResetOtpAsync(string toEmail, string displayName, string otp);
+        Task SendEmailVerificationOtpAsync(string toEmail, string displayName, string otp);
+        Task SendTwoFactorOtpAsync(string toEmail, string displayName, string otp);
     }
 
     public sealed class AuthException : Exception

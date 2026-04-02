@@ -12,21 +12,6 @@ namespace TripMind.Application.DTOs.Auth
         public bool RememberMe { get; set; }
     }
 
-    public sealed class GoogleLoginRequest
-    {
-        [Required] public string IdToken { get; set; } = null!;
-    }
-
-    public sealed class LogoutRequest
-    {
-        [Required] public string RefreshToken { get; set; } = null!;
-    }
-
-    public sealed class FacebookLoginRequest
-    {
-        [Required] public string AccessToken { get; set; } = null!;
-    }
-
     public sealed class LoginRequest
     {
         [Required][EmailAddress] public string Email { get; set; } = null!;
@@ -34,7 +19,48 @@ namespace TripMind.Application.DTOs.Auth
         public bool RememberMe { get; set; }
     }
 
+    public sealed class VerifyEmailOtpRequest
+    {
+        [Required][EmailAddress] public string Email { get; set; } = null!;
+        [Required][StringLength(6, MinimumLength = 6)] public string Otp { get; set; } = null!;
+    }
+
+    public sealed class ResendEmailOtpRequest
+    {
+        [Required][EmailAddress] public string Email { get; set; } = null!;
+    }
+
+    public sealed class LoginOtpRequest
+    {
+        [Required][EmailAddress] public string Email { get; set; } = null!;
+        [Required][StringLength(6, MinimumLength = 6)] public string Otp { get; set; } = null!;
+    }
+
+    public sealed class ChangePasswordRequest
+    {
+        [Required] public string CurrentPassword { get; set; } = null!;
+        [Required][MinLength(8)] public string NewPassword { get; set; } = null!;
+        [Required][Compare(nameof(NewPassword))] public string ConfirmNewPassword { get; set; } = null!;
+    }
+
+    public sealed class TwoFactorInitiateRequest { }
+
+    public sealed class TwoFactorConfirmRequest
+    {
+        [Required][StringLength(6, MinimumLength = 6)] public string Otp { get; set; } = null!;
+    }
+
+    public sealed class TwoFactorDisableRequest
+    {
+        [Required] public string Password { get; set; } = null!;
+    }
+
     public sealed class RefreshTokenRequest
+    {
+        [Required] public string RefreshToken { get; set; } = null!;
+    }
+
+    public sealed class LogoutRequest
     {
         [Required] public string RefreshToken { get; set; } = null!;
     }
@@ -47,8 +73,19 @@ namespace TripMind.Application.DTOs.Auth
     public sealed class VerifyOtpRequest
     {
         [Required][EmailAddress] public string Email { get; set; } = null!;
-        [Required][StringLength(4, MinimumLength = 4)]
-        [RegularExpression(@"^\d{4}$")] public string Otp { get; set; } = null!;
+        [Required]
+        [StringLength(6, MinimumLength = 4)]
+        [RegularExpression(@"^\d{4,6}$")] public string Otp { get; set; } = null!;
+    }
+
+    public sealed class GoogleLoginRequest
+    {
+        [Required] public string IdToken { get; set; } = null!;
+    }
+
+    public sealed class FacebookLoginRequest
+    {
+        [Required] public string AccessToken { get; set; } = null!;
     }
 
     public sealed class ResetPasswordRequest
@@ -70,6 +107,14 @@ namespace TripMind.Application.DTOs.Auth
         public string Email { get; init; } = null!;
         public string? ProfilePhotoUrl { get; init; }
         public string LanguagePreference { get; init; } = "AR";
+        public bool IsEmailVerified { get; init; }
+        public bool TwoFactorEnabled { get; init; }
+    }
+
+    public sealed class PendingTwoFactorResponse
+    {
+        public string Message { get; init; } = "OTP sent to your email. Please verify to complete login.";
+        public string Email { get; init; } = null!;
     }
 
     public sealed class VerifyOtpResponse
@@ -81,5 +126,10 @@ namespace TripMind.Application.DTOs.Auth
     public sealed class ResetPasswordResponse
     {
         public string Message { get; init; } = "Your password has been successfully updated.";
+    }
+
+    public sealed class MessageResponse
+    {
+        public string Message { get; init; } = null!;
     }
 }
