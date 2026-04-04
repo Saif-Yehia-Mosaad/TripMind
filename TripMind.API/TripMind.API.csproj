@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TripMind.API</RootNamespace>
+    <UserSecretsId>8698b3ee-10ca-44ba-8c7e-3eae9d6d137e</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\TripMind.Application\TripMind.Application.csproj" />
