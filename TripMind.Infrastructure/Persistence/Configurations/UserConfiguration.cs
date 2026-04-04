@@ -23,9 +23,9 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(u => u.GoogleId).HasMaxLength(128);
             e.Property(u => u.FacebookId).HasMaxLength(128);
             e.Property(u => u.IsEmailVerified).HasDefaultValue(false);
-            e.Property(u => u.EmailVerificationOtp).HasMaxLength(6);
+            e.Property(u => u.EmailVerificationOtp).HasMaxLength(512);
             e.Property(u => u.TwoFactorEnabled).HasDefaultValue(false);
-            e.Property(u => u.TwoFactorOtp).HasMaxLength(6);
+            e.Property(u => u.TwoFactorOtp).HasMaxLength(512);
             e.Property(u => u.FailedLoginAttempts).HasDefaultValue(0);
             e.Property(u => u.PasswordResetToken).HasMaxLength(512);
             e.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");

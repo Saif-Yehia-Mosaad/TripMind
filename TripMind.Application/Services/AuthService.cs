@@ -30,6 +30,11 @@ namespace TripMind.Application.Services
             if (await _db.Users.AnyAsync(u => u.Email == req.Email.ToLowerInvariant().Trim()))
                 throw new AuthException("An account with this email already exists.");
 
+            var emailDomain = req.Email.Split('@')[1].ToLower();
+            var blockedDomains = new[] { "test.com", "example.com", "mailinator.com", "tempmail.com", "guerrillamail.com", "yopmail.com" };
+            if (Array.Exists(blockedDomains, d => emailDomain == d))
+                throw new AuthException("Please use a valid email address.");
+
             var now = DateTime.UtcNow;
             string otp = GenerateOtp();
 
@@ -50,12 +55,15 @@ namespace TripMind.Application.Services
             };
 
             _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.REGISTER", ip, true));
             await _db.SaveChangesAsync();
 
             await _email.SendEmailVerificationOtpAsync(user.Email, user.DisplayName, otp);
 
             return new MessageResponse { Message = "Registration successful. Please check your email to verify your account." };
+
         }
 
         public async Task<object> LoginAsync(LoginRequest req, string? ip = null)

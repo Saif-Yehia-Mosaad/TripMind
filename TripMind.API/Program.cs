@@ -27,7 +27,16 @@ builder.Services.AddHttpClient<AiService>();
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<TripMindDbContext>());
 builder.Services.AddScoped<IJwtProvider,    JwtProvider>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddScoped<IEmailSender,    StubEmailSender>();
+var emailProvider = builder.Configuration["Email:Provider"];
+if (emailProvider == "Brevo")
+{
+    var apiKey = builder.Configuration["Email:ApiKey"]!;
+    builder.Services.AddScoped<IEmailSender>(_ => new BrevoEmailSender(apiKey));
+}
+else
+{
+    builder.Services.AddScoped<IEmailSender, StubEmailSender>();
+}
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();

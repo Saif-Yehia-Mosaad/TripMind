@@ -6,7 +6,11 @@ namespace TripMind.Application.DTOs.Auth
     public sealed class RegisterRequest
     {
         [Required][MaxLength(100)] public string DisplayName { get; set; } = null!;
-        [Required][EmailAddress][MaxLength(256)] public string Email { get; set; } = null!;
+        [Required]
+        [EmailAddress]
+        [MaxLength(256)]
+        [RegularExpression(@"^[^@]+@[^@]+\.[^@]{2,}$", ErrorMessage = "Please provide a valid email address.")]
+        public string Email { get; set; } = null!;
         [Required][MinLength(8)] public string Password { get; set; } = null!;
         [Required][Compare(nameof(Password))] public string ConfirmPassword { get; set; } = null!;
         public bool RememberMe { get; set; }
