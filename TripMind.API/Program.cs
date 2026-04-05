@@ -21,7 +21,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<TripMindDbContext>(opt =>
     opt.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sql => sql.MigrationsAssembly("TripMind.Infrastructure").CommandTimeout(30)));
+        sql => sql.MigrationsAssembly("TripMind.Infrastructure")
+          .CommandTimeout(30)
+          .EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null)));
 
 builder.Services.AddHttpClient<AiService>();
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<TripMindDbContext>());
