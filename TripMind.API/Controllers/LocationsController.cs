@@ -1,10 +1,12 @@
-using System;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using TripMind.Application.DTOs.Location;
 using TripMind.Application.Services;
-using TripMind.Infrastructure.Services;
 using TripMind.Domain.Enums;
+using TripMind.Infrastructure.Services;
 
 namespace TripMind.API.Controllers
 {
@@ -26,5 +28,18 @@ namespace TripMind.API.Controllers
         [HttpGet("hidden-gems")]
         public async Task<IActionResult> GetHiddenGems([FromQuery] string? governorate = null)
             => Ok(await _locations.GetHiddenGemsAsync(governorate));
+
+        private Guid Me() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        [HttpGet("recommended")]
+        [Authorize]
+        [ProducesResponseType(typeof(List<LocationResponse>), 200)]
+        public async Task<IActionResult> GetRecommended([FromQuery] int count = 10) =>
+    Ok(await _locations.GetRecommendedAsync(Me(), count));
+
+        [HttpGet("popular")]
+        [ProducesResponseType(typeof(List<LocationResponse>), 200)]
+        public async Task<IActionResult> GetPopular([FromQuery] string? governorate = null, [FromQuery] int count = 20) =>
+            Ok(await _locations.GetPopularAsync(governorate, count));
     }
 }

@@ -10,6 +10,11 @@ namespace TripMind.Domain.Enums
         Church,
         Market,
         Park,
+        Cafe,
+        Heritage,
+        Entertainment,
+        Nature,
+        Shopping,
         Other
     }
 }

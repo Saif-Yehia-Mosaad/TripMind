@@ -9,6 +9,9 @@ namespace TripMind.Domain.Entities
         public string Email { get; set; } = null!;
         public string PasswordHash { get; set; } = null!;
         public string DisplayName { get; set; } = null!;
+        public string? Username { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Bio { get; set; }
         public string? ProfilePhotoUrl { get; set; }
         public string? HomeGovernorate { get; set; }
         public string LanguagePreference { get; set; } = "AR";
@@ -16,21 +19,16 @@ namespace TripMind.Domain.Entities
         public bool IsActive { get; set; } = true;
         public string? GoogleId { get; set; }
         public string? FacebookId { get; set; }
-
         public bool IsEmailVerified { get; set; } = false;
         public string? EmailVerificationOtp { get; set; }
         public DateTime? EmailOtpExpiry { get; set; }
-
         public bool TwoFactorEnabled { get; set; } = false;
         public string? TwoFactorOtp { get; set; }
         public DateTime? TwoFactorOtpExpiry { get; set; }
-
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LockoutEnd { get; set; }
-
         public string? PasswordResetToken { get; set; }
         public DateTime? ResetTokenExpiry { get; set; }
-
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 

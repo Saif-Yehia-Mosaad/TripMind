@@ -13,6 +13,10 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(u => u.UserId).HasDefaultValueSql("NEWID()");
             e.Property(u => u.Email).IsRequired().HasMaxLength(256);
             e.HasIndex(u => u.Email).IsUnique().HasDatabaseName("UIX_Users_Email");
+            e.Property(u => u.Username).HasMaxLength(50);
+            e.HasIndex(u => u.Username).IsUnique().HasDatabaseName("UIX_Users_Username").HasFilter("[Username] IS NOT NULL");
+            e.Property(u => u.PhoneNumber).HasMaxLength(20);
+            e.Property(u => u.Bio).HasMaxLength(500);
             e.Property(u => u.PasswordHash).IsRequired().HasMaxLength(512);
             e.Property(u => u.DisplayName).IsRequired().HasMaxLength(100);
             e.Property(u => u.ProfilePhotoUrl).HasMaxLength(2048);

@@ -60,7 +60,16 @@ namespace TripMind.Application.Services
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.REGISTER", ip, true));
             await _db.SaveChangesAsync();
 
-            await _email.SendEmailVerificationOtpAsync(user.Email, user.DisplayName, otp);
+            try
+            {
+                await _email.SendEmailVerificationOtpAsync(user.Email, user.DisplayName, otp);
+            }
+            catch
+            {
+                _db.Users.Remove(user);
+                await _db.SaveChangesAsync();
+                throw new AuthException("Failed to send verification email. Please try again.");
+            }
 
             return new MessageResponse { Message = "Registration successful. Please check your email to verify your account." };
 

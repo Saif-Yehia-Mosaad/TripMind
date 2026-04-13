@@ -6,3 +6,5 @@ obj/
 .env
 **/appsettings.Production.json
 **/appsettings.Development.json
+TripMind.API/logs/
+*.log

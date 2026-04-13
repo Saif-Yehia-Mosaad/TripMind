@@ -46,7 +46,13 @@ namespace TripMind.Infrastructure.Email
             };
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            await http.PostAsync(ApiUrl, content);
+            var response = await http.PostAsync(ApiUrl, content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"Brevo error {response.StatusCode}: {error}");
+            }
         }
     }
 }

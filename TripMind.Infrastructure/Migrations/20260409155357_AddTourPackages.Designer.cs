@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TripMind.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using TripMind.Infrastructure.Persistence;
 namespace TripMind.Infrastructure.Migrations
 {
     [DbContext(typeof(TripMindDbContext))]
-    partial class TripMindDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409155357_AddTourPackages")]
+    partial class AddTourPackages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -647,10 +650,6 @@ namespace TripMind.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWID()");
 
-                    b.Property<string>("Bio")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -719,10 +718,6 @@ namespace TripMind.Infrastructure.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<string>("ProfilePhotoUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
@@ -752,20 +747,11 @@ namespace TripMind.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<string>("Username")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.HasKey("UserId");
 
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasDatabaseName("UIX_Users_Email");
-
-                    b.HasIndex("Username")
-                        .IsUnique()
-                        .HasDatabaseName("UIX_Users_Username")
-                        .HasFilter("[Username] IS NOT NULL");
 
                     b.ToTable("Users", (string)null);
                 });

@@ -47,6 +47,8 @@ builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<ReviewService>();
 builder.Services.AddScoped<ItineraryService>();
+builder.Services.AddScoped<TourPackageService>();
+builder.Services.AddScoped<IImageService, CloudinaryImageService>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
@@ -134,12 +136,34 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        while (true)
+        {
+            await Task.Delay(TimeSpan.FromHours(1));
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<TripMindDbContext>();
+            var expired = await db.Users
+                .Where(u => !u.IsEmailVerified && u.CreatedAt < DateTime.UtcNow.AddHours(-24))
+                .ToListAsync();
+            if (expired.Any())
+            {
+                db.Users.RemoveRange(expired);
+                await db.SaveChangesAsync();
+            }
+        }
+    });
+});
+
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<AuditLogMiddleware>();
 
+app.UseStaticFiles();
 app.MapControllers();
 app.MapHealthChecks("/health");
 

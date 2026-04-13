@@ -9,6 +9,7 @@ namespace TripMind.Application.DTOs.Location
         public LocationCategory? Category { get; set; }
         public bool? HiddenGemsOnly { get; set; }
         public decimal? MaxPriceEgp { get; set; }
+        public float? MinRating { get; set; }
         public string? Search { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

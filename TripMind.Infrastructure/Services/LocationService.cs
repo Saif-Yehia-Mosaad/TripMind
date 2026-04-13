@@ -33,6 +33,9 @@ namespace TripMind.Infrastructure.Services
                     (l.Category == LocationCategory.Restaurant && l.AvgMealPriceEgp <= req.MaxPriceEgp) ||
                     (l.Category == LocationCategory.Park && (l.EntryFeeEgp ?? 0) <= req.MaxPriceEgp));
 
+            if (req.MinRating.HasValue)
+                query = query.Where(l => l.AvgRating >= req.MinRating.Value);
+
             if (!string.IsNullOrWhiteSpace(req.Search))
                 query = query.Where(l =>
                     l.NameEn.Contains(req.Search) || l.NameAr.Contains(req.Search));
@@ -134,5 +137,73 @@ namespace TripMind.Infrastructure.Services
                 HiddenGemStory = l.HiddenGem?.Story
             }).ToList();
         }
+    public async Task<List<LocationResponse>> GetRecommendedAsync(Guid userId, int count = 10)
+        {
+            var interests = await _db.UserInterests
+                .Where(i => i.UserId == userId)
+                .Select(i => i.InterestTag)
+                .ToListAsync();
+
+            var query = _db.Locations.AsQueryable();
+
+            if (interests.Any())
+                query = query.Where(l => interests.Contains(l.Category.ToString()));
+
+            var locations = await query
+                .OrderByDescending(l => l.PopularityScore)
+                .ThenByDescending(l => l.AvgRating)
+                .Take(count)
+                .Include(l => l.HiddenGem)
+                .ToListAsync();
+
+            return locations.Select(l => new LocationResponse
+            {
+                LocationId = l.LocationId,
+                NameEn = l.NameEn,
+                NameAr = l.NameAr,
+                Category = l.Category.ToString(),
+                Governorate = l.Governorate,
+                Latitude = l.Latitude,
+                Longitude = l.Longitude,
+                DescriptionEn = l.DescriptionEn,
+                DescriptionAr = l.DescriptionAr,
+                EntryFeeEgp = l.EntryFeeEgp,
+                AvgPricePerNightEgp = l.AvgPricePerNightEgp,
+                AvgMealPriceEgp = l.AvgMealPriceEgp,
+                OpeningHours = l.OpeningHours,
+                IsHiddenGem = l.IsHiddenGem,
+                PopularityScore = l.PopularityScore,
+                AvgRating = l.AvgRating,
+                HiddenGemStory = l.HiddenGem?.Story
+            }).ToList();
+        }
+
+        public async Task<List<LocationResponse>> GetPopularAsync(string? governorate = null, int count = 20)
+        {
+            var query = _db.Locations.Include(l => l.HiddenGem).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(governorate))
+                query = query.Where(l => l.Governorate == governorate);
+
+            var locations = await query
+                .OrderByDescending(l => l.PopularityScore)
+                .Take(count)
+                .ToListAsync();
+
+            return locations.Select(l => new LocationResponse
+            {
+                LocationId = l.LocationId,
+                NameEn = l.NameEn,
+                NameAr = l.NameAr,
+                Category = l.Category.ToString(),
+                Governorate = l.Governorate,
+                Latitude = l.Latitude,
+                Longitude = l.Longitude,
+                IsHiddenGem = l.IsHiddenGem,
+                PopularityScore = l.PopularityScore,
+                AvgRating = l.AvgRating,
+                HiddenGemStory = l.HiddenGem?.Story
+            }).ToList();
+        }
     }
-}
+    }

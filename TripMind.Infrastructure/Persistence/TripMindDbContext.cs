@@ -24,7 +24,8 @@ namespace TripMind.Infrastructure.Persistence
         public DbSet<HiddenGem>       HiddenGems       { get; set; } = null!;
         public DbSet<AuditLog>        AuditLogs        { get; set; } = null!;
         public DbSet<RefreshToken>    RefreshTokens    { get; set; } = null!;
-
+        public DbSet<TourPackage> TourPackages { get; set; }
+        public DbSet<TourPackageLocation> TourPackageLocations { get; set; }
         DbSet<User>         IAppDbContext.Users         => Users;
         DbSet<AuditLog>     IAppDbContext.AuditLogs     => AuditLogs;
         DbSet<RefreshToken> IAppDbContext.RefreshTokens => RefreshTokens;
