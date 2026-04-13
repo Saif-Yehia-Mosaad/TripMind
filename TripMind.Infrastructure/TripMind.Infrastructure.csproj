@@ -5,6 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<OutputType>Library</OutputType>
 		<RootNamespace>TripMind.Infrastructure</RootNamespace>
+		<UserSecretsId>8698b3ee-10ca-44ba-8c7e-3eae9d6d137e</UserSecretsId>
 	</PropertyGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\TripMind.Domain\TripMind.Domain.csproj" />

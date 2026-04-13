@@ -50,8 +50,11 @@ builder.Services.AddScoped<ItineraryService>();
 builder.Services.AddScoped<TourPackageService>();
 builder.Services.AddScoped<IImageService, CloudinaryImageService>();
 
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrEmpty(jwtSecret) && builder.Environment.IsDevelopment())
+    jwtSecret = "ThisIsMySecretKeyForTripMindAppMinimum32Chars!";
+else if (string.IsNullOrEmpty(jwtSecret))
+    throw new InvalidOperationException("Jwt:Secret is not configured.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt => opt.TokenValidationParameters = new TokenValidationParameters

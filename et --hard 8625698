@@ -1,0 +1,17 @@
+[33mbc68e79[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to HEAD~2
+[33m8625698[m HEAD@{1}: commit: Handle missing JWT secret and add design-time DbContext factory
+[33m721897b[m HEAD@{2}: commit: remove secrets
+[33mbc68e79[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{3}: reset: moving to HEAD~1
+[33m01c2445[m HEAD@{4}: reset: moving to HEAD~1
+[33m657720a[m HEAD@{5}: commit: Enhance user profiles, add tour packages & image upload
+[33m01c2445[m HEAD@{6}: commit: Add initial DB schema migration and update .gitignore
+[33mbc68e79[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{7}: commit: Enhance config management and DB resiliency for production
+[33m4eca24b[m HEAD@{8}: commit: ---------------
+[33m5b2846f[m HEAD@{9}: commit: Enable .NET User Secrets in TripMind.API project
+[33mab3444c[m HEAD@{10}: commit: Add Brevo email provider, improve email validation & OTP cols
+[33m5b4e424[m HEAD@{11}: commit: Enhance auth: email verification, 2FA, security flows
+[33m54b04d3[m HEAD@{12}: commit: Update connection string and deployment profiles
+[33m9be70f4[m HEAD@{13}: commit: AI trip search integration, paged APIs, and DTO cleanup
+[33mf55a69b[m HEAD@{14}: commit: Add social login, user deactivation, and logout support
+[33m7b4e83a[m HEAD@{15}: commit: Add project files.
+[33m418d34b[m HEAD@{16}: commit (initial): Add .gitattributes.
