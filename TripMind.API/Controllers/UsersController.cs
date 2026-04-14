@@ -60,6 +60,8 @@ namespace TripMind.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
 
+            await _users.UpdateProfileAsync(Me(), new UpdateProfileRequest { ProfilePhotoUrl = url });
+
             return Ok(new UploadPhotoResponse(url));
         }
 
