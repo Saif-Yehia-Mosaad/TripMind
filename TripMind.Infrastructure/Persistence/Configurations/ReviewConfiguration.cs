@@ -12,7 +12,12 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.HasKey(r => r.ReviewId);
             e.Property(r => r.ReviewId).HasDefaultValueSql("NEWID()");
             e.Property(r => r.Rating).IsRequired();
-            e.HasCheckConstraint("CK_Reviews_Rating", "[Rating] BETWEEN 1 AND 5");
+            e.ToTable("Reviews", t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_Reviews_Rating",
+                    "[Rating] BETWEEN 1 AND 5");
+            });
             e.Property(r => r.ReviewText).HasColumnType("nvarchar(max)");
             e.Property(r => r.PhotoUrl).HasMaxLength(2048);
             e.Property(r => r.HelpfulCount).HasDefaultValue(0);

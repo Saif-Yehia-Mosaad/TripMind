@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TripMind.Application.DTOs.Ai;
@@ -16,9 +18,19 @@ namespace TripMind.API.Controllers
 
         public AiController(AiService ai) => _ai = ai;
 
-        [HttpPost("search")]
-        [ProducesResponseType(typeof(AiSearchResponse), 200)]
-        public async Task<IActionResult> Search([FromBody] AiSearchRequest req) =>
-            Ok(await _ai.SearchAsync(req));
+        [HttpPost("generate-plan")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> GeneratePlan([FromBody] AiSearchRequest req)
+        {
+            try
+            {
+                var result = await _ai.GeneratePlanAsync(req);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(503, new { message = ex.Message });
+            }
+        }
     }
 }
