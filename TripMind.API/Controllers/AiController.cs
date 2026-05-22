@@ -32,5 +32,19 @@ namespace TripMind.API.Controllers
                 return StatusCode(503, new { message = ex.Message });
             }
         }
+        [HttpPost("recommend")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> Recommend([FromBody] RecommendRequest req)
+        {
+            try
+            {
+                var result = await _ai.GetRecommendationsAsync(req);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(503, new { message = ex.Message });
+            }
+        }
     }
 }

@@ -367,7 +367,7 @@ namespace TripMind.Application.Services
                     UserId = Guid.NewGuid(),
                     Email = fb.Email.ToLowerInvariant(),
                     DisplayName = fb.Name ?? fb.Email,
-                    ProfilePhotoUrl = fb.Picture?.Data?.Url,
+                    ProfilePhotoUrl = $"https://graph.facebook.com/{fb.Id}/picture?type=large&width=720&height=720&access_token={accessToken}",
                     FacebookId = fb.Id,
                     PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
                     IsActive = true,
@@ -380,6 +380,8 @@ namespace TripMind.Application.Services
             else
             {
                 if (user.FacebookId == null) user.FacebookId = fb.Id;
+                if (user.ProfilePhotoUrl == null || user.ProfilePhotoUrl.Contains("50"))
+                    user.ProfilePhotoUrl = $"https://graph.facebook.com/{fb.Id}/picture?type=large&width=720&height=720&access_token={accessToken}";
                 user.IsEmailVerified = true;
                 user.UpdatedAt = DateTime.UtcNow;
             }
