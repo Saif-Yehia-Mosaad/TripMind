@@ -1,8 +1,10 @@
 ﻿using System;
-using System.Security.Claims;
+using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Hosting;
 using TripMind.Application.DTOs.Ai;
 using TripMind.Infrastructure.Services;
 
@@ -11,35 +13,82 @@ namespace TripMind.API.Controllers
     [ApiController]
     [Route("api/v1/ai")]
     [Produces("application/json")]
-    [Authorize]
+    //[Authorize]
     public sealed class AiController : ControllerBase
     {
         private readonly AiService _ai;
+        private readonly IWebHostEnvironment _env;
 
-        public AiController(AiService ai) => _ai = ai;
+        public AiController(AiService ai, IWebHostEnvironment env)
+        {
+            _ai = ai;
+            _env = env;
+        }
 
         [HttpPost("generate-plan")]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> GeneratePlan([FromBody] AiSearchRequest req)
+        public async Task<IActionResult> GeneratePlan([FromBody] GeneratePlanRequest req)
+            => await Run(() => _ai.GeneratePlanAsync(req));
+
+        [HttpPost("chat")]
+        public async Task<IActionResult> Chat([FromBody] ChatRequest req)
+            => await Run(() => _ai.ChatAsync(req));
+
+        [HttpPost("edit")]
+        public async Task<IActionResult> Edit([FromBody] EditRequest req)
+            => await Run(() => _ai.EditAsync(req));
+
+        [HttpPost("places/home")]
+        public async Task<IActionResult> Home([FromBody] HomeRequest req)
+            => await Run(() => _ai.HomeAsync(req));
+
+        [HttpPost("places/recommend")]
+        public async Task<IActionResult> Recommend([FromBody] RecommendRequest req)
+            => await Run(() => _ai.RecommendAsync(req));
+
+        [HttpPost("places/search")]
+        public async Task<IActionResult> SearchPlaces([FromBody] SearchPlacesRequest req)
+            => await Run(() => _ai.SearchPlacesAsync(req));
+
+        [HttpPost("places/top-rated")]
+        public async Task<IActionResult> TopRated([FromBody] TopRatedRequest req)
+            => await Run(() => _ai.TopRatedAsync(req));
+
+        [HttpPost("places/getplaces")]
+        public async Task<IActionResult> GetPlaces([FromBody] GetPlacesRequest req)
+            => await Run(() => _ai.GetPlacesAsync(req));
+
+        [HttpGet("places/{placeId}")]
+        public async Task<IActionResult> GetPlace(string placeId)
         {
             try
             {
-                var result = await _ai.GeneratePlanAsync(req);
-                return Ok(result);
+                return Ok(await _ai.GetPlaceByIdAsync(placeId));
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Place not found." });
+            }
+            catch (AiServiceException ex)
+            {
+                var detail = _env.IsDevelopment() ? ex.RawBody : null;
+                return StatusCode(ex.StatusCode, new { message = ex.Message, detail });
             }
             catch (InvalidOperationException ex)
             {
                 return StatusCode(503, new { message = ex.Message });
             }
         }
-        [HttpPost("recommend")]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> Recommend([FromBody] RecommendRequest req)
+
+        private async Task<IActionResult> Run(Func<Task<JsonElement>> action)
         {
             try
             {
-                var result = await _ai.GetRecommendationsAsync(req);
-                return Ok(result);
+                return Ok(await action());
+            }
+            catch (AiServiceException ex)
+            {
+                var detail = _env.IsDevelopment() ? ex.RawBody : null;
+                return StatusCode(ex.StatusCode, new { message = ex.Message, detail });
             }
             catch (InvalidOperationException ex)
             {
