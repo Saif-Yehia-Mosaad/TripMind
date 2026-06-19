@@ -10,23 +10,8 @@ namespace TripMind.Application.DTOs.Ai
     // ── Generate Plan ─────────────────────────────────────────────────────────
     public sealed class GeneratePlanRequest
     {
-        private static readonly HashSet<string> AllowedCities = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Cairo","Giza","Alexandria","Luxor","Aswan",
-            "Sharm El Sheikh","Hurghada","Port Said",
-            "Ismailia","Marsa Matrouh","Fayoum"
-        };
-
-        private static readonly HashSet<string> AllowedInterests = new(StringComparer.Ordinal)
-        {
-            "Arts & Crafts","Bakery","Beaches & Water","Cafe","Entertainment",
-            "History & Antiquities","Mosques & Churches","Music","Nature",
-            "Nightlife","Outdoor","Park","Restaurants","Seafood",
-            "Shopping","Street Food","Tourism","Waterfront"
-        };
-
         [Required]
-        [CustomValidation(typeof(GeneratePlanRequest), nameof(ValidateCity))]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateCity))]
         public string City { get; set; } = null!;
 
         [Required][Range(1, 7)] public int Days { get; set; }
@@ -34,31 +19,10 @@ namespace TripMind.Application.DTOs.Ai
         [Required][Range(1, 50)] public int People { get; set; }
 
         [Required]
-        [CustomValidation(typeof(GeneratePlanRequest), nameof(ValidateInterests))]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateDisplayInterests))]
         public List<string> Interests { get; set; } = new();
 
         public string? MustInclude { get; set; }
-
-        public static ValidationResult? ValidateCity(string city, ValidationContext ctx)
-        {
-            if (string.IsNullOrWhiteSpace(city) || !AllowedCities.Contains(city))
-                return new ValidationResult(
-                    $"City '{city}' is not supported. Allowed: " +
-                    string.Join(", ", AllowedCities));
-            return ValidationResult.Success;
-        }
-
-        public static ValidationResult? ValidateInterests(List<string> interests, ValidationContext ctx)
-        {
-            if (interests == null || interests.Count == 0)
-                return new ValidationResult("Interests list cannot be empty.");
-            var invalid = interests.Where(i => !AllowedInterests.Contains(i)).ToList();
-            if (invalid.Any())
-                return new ValidationResult(
-                    $"Invalid interests: {string.Join(", ", invalid)}. " +
-                    $"Allowed: {string.Join(", ", AllowedInterests)}");
-            return ValidationResult.Success;
-        }
     }
 
     // ── ChatBot ───────────────────────────────────────────────────────────────
@@ -175,17 +139,57 @@ namespace TripMind.Application.DTOs.Ai
         public int? Seed { get; set; }
     }
 
-    public sealed class RecommendRequest
+    /// <summary>
+    /// Request for POST /places/recommend.
+    ///
+    /// IMPORTANT — Recommendation engine behavior (per AI team):
+    /// 1. All places are ranked by cosine similarity between
+    ///    `selected_categories`/interests and each place's data — highest
+    ///    similarity first.
+    /// 2. The top `pool_size` results (default 50) are taken from that
+    ///    ranked list.
+    /// 3. The pool is then shuffled using `seed`. Same seed → same shuffle
+    ///    order every time (stable pagination). Different/omitted seed →
+    ///    different shuffle.
+    /// 4. If `pool_size` is large (e.g. 500), the pool can include places
+    ///    with a similarity score of 0 (i.e. places that don't actually
+    ///    match `selected_categories` at all) — and after shuffling, one of
+    ///    those irrelevant places can end up first. This is expected
+    ///    behavior of the AI ranking engine, NOT a backend bug — the
+    ///    backend only forwards `pool_size`/`seed` and returns the response
+    ///    as-is (JsonElement passthrough, no re-sorting on our side).
+    ///
+    /// Backend-side guarantee added here: `pool_size` must be >= `limit`,
+    /// otherwise there aren't enough items in the pool to even fill one
+    /// page of results after shuffling.
+    /// </summary>
+    public sealed class RecommendRequest : IValidatableObject
     {
-        [Required] public List<string> SelectedCategories { get; set; } = new();
+        [Required]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateDisplayInterests))]
+        public List<string> SelectedCategories { get; set; } = new();
+
         public PlaceFiltersRequest? Filters { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
         public int Page { get; set; } = 1;
 
-        [Range(1, 50)] public int Limit { get; set; } = 10;
+        [Range(1, 50)]
+        public int Limit { get; set; } = 10;
+
         public int? Seed { get; set; }
-        [Range(10, 500)] public int PoolSize { get; set; } = 150;
+
+        [Range(10, 500)]
+        public int PoolSize { get; set; } = 150;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (PoolSize < Limit)
+                yield return new ValidationResult(
+                    $"PoolSize ({PoolSize}) must be greater than or equal to Limit ({Limit}). " +
+                    "Otherwise there aren't enough ranked places to shuffle and fill the requested page.",
+                    new[] { nameof(PoolSize) });
+        }
     }
 
     public sealed class SearchPlacesRequest
@@ -211,18 +215,13 @@ namespace TripMind.Application.DTOs.Ai
 
     public sealed class GetPlacesRequest
     {
-        private static readonly HashSet<string> AllowedInterests = new(StringComparer.Ordinal)
-        {
-            "Arts & Crafts","Bakery","Beaches & Water","Cafe","Entertainment",
-            "History & Antiquities","Mosques & Churches","Music","Nature",
-            "Nightlife","Outdoor","Park","Restaurants","Seafood",
-            "Shopping","Street Food","Tourism","Waterfront"
-        };
-
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateCities))]
         public List<string>? City { get; set; }
+
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidatePlaceCategories))]
         public List<string>? Category { get; set; }
 
-        [CustomValidation(typeof(GetPlacesRequest), nameof(ValidateInterests))]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateDisplayInterests))]
         public List<string>? Interests { get; set; }
 
         [Range(0, 5)] public float? MinRating { get; set; }
@@ -231,28 +230,15 @@ namespace TripMind.Application.DTOs.Ai
         [Range(0, 100000)] public float? MaxPrice { get; set; }
         public bool? HiddenGem { get; set; }
 
-        [RegularExpression("^(rating|reviews|price|name)$",
-            ErrorMessage = "SortBy must be: rating, reviews, price, or name.")]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateSortBy))]
         public string SortBy { get; set; } = "rating";
 
-        [RegularExpression("^(asc|desc)$",
-            ErrorMessage = "Order must be 'asc' or 'desc'.")]
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateOrder))]
         public string Order { get; set; } = "desc";
 
         [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
         public int Page { get; set; } = 1;
 
         [Range(1, 50)] public int Limit { get; set; } = 10;
-
-        public static ValidationResult? ValidateInterests(List<string>? interests, ValidationContext ctx)
-        {
-            if (interests == null || interests.Count == 0) return ValidationResult.Success;
-            var invalid = interests.Where(i => !AllowedInterests.Contains(i)).ToList();
-            if (invalid.Any())
-                return new ValidationResult(
-                    $"Invalid interests: {string.Join(", ", invalid)}. " +
-                    $"Allowed: {string.Join(", ", AllowedInterests)}");
-            return ValidationResult.Success;
-        }
     }
 }
