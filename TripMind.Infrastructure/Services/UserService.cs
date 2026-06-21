@@ -52,14 +52,10 @@ namespace TripMind.Infrastructure.Services
         public async Task<UserDashboardResponse> GetDashboardAsync(Guid userId)
         {
             var trips = await _db.Trips.CountAsync(t => t.UserId == userId);
-            var reviews = await _db.Reviews.CountAsync(r => r.UserId == userId);
-            var saved = await _db.SavedItineraries.CountAsync(s => s.UserId == userId);
 
             return new UserDashboardResponse
             {
                 TotalTrips = trips,
-                TotalReviews = reviews,
-                TotalSaved = saved
             };
         }
 

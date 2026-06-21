@@ -33,11 +33,8 @@ namespace TripMind.Domain.Entities
         public DateTime UpdatedAt { get; set; }
 
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();
-        public ICollection<Review> Reviews { get; set; } = new List<Review>();
-        public ICollection<SavedItinerary> SavedItineraries { get; set; } = new List<SavedItinerary>();
         public ICollection<UserInterest> UserInterests { get; set; } = new List<UserInterest>();
         public ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
-        public ICollection<ReviewVote> ReviewVotes { get; set; } = new List<ReviewVote>();
         public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }

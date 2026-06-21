@@ -13,7 +13,7 @@ namespace TripMind.API.Controllers
     [ApiController]
     [Route("api/v1/ai")]
     [Produces("application/json")]
-    [Authorize]
+    //[Authorize]
     public sealed class AiController : ControllerBase
     {
         private readonly AiService _ai;

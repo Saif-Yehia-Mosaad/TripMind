@@ -9,17 +9,38 @@ namespace TripMind.Infrastructure.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Trip> e)
         {
             e.ToTable("Trips");
+
             e.HasKey(t => t.TripId);
             e.Property(t => t.TripId).HasDefaultValueSql("NEWID()");
+
+            e.Property(t => t.Title).HasMaxLength(200);
             e.Property(t => t.DestinationGovernorate).IsRequired().HasMaxLength(100);
-            e.Property(t => t.TotalBudgetEgp).HasColumnType("decimal(12,2)");
-            e.Property(t => t.Status).HasConversion<string>();
-            e.Property(t => t.IsPublic).HasDefaultValue(false);
-            e.Property(t => t.ShareToken).IsRequired().HasMaxLength(64);
-            e.HasIndex(t => t.ShareToken).IsUnique().HasDatabaseName("UIX_Trips_ShareToken");
+            e.Property(t => t.SessionId).HasMaxLength(100);
+            e.Property(t => t.ShareToken).HasMaxLength(64);
+            e.Property(t => t.PlanJson).HasColumnType("nvarchar(max)");
+            e.Property(t => t.CollectedJson).HasColumnType("nvarchar(max)");
+
+            e.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(t => t.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(t => t.User).WithMany(u => u.Trips)
-             .HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+            e.HasOne(t => t.User)
+             .WithMany()
+             .HasForeignKey(t => t.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(t => t.TripReviews)
+             .WithOne(r => r.Trip)
+             .HasForeignKey(r => r.TripId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(t => t.ShareToken)
+             .IsUnique()
+             .HasFilter("[ShareToken] IS NOT NULL")
+             .HasDatabaseName("UIX_Trips_ShareToken");
+
+            e.HasIndex(t => t.SessionId)
+             .HasDatabaseName("IX_Trips_SessionId");
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TripMind.Domain.Entities;
+using TripMind.Domain.Enums;
 
 namespace TripMind.Infrastructure.Persistence.Configurations
 {
@@ -12,8 +13,6 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.HasKey(td => td.TripDayId);
             e.Property(td => td.TripDayId).HasDefaultValueSql("NEWID()");
             e.Property(td => td.Notes).HasColumnType("nvarchar(max)");
-            e.HasOne(td => td.Trip).WithMany(t => t.TripDays)
-             .HasForeignKey(td => td.TripId).OnDelete(DeleteBehavior.Cascade);
         }
     }
 
@@ -25,8 +24,6 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.HasKey(tl => tl.TripLocationId);
             e.Property(tl => tl.TripLocationId).HasDefaultValueSql("NEWID()");
             e.Property(tl => tl.TimeSlot).IsRequired().HasMaxLength(5);
-            e.HasOne(tl => tl.Trip).WithMany(t => t.TripLocations)
-             .HasForeignKey(tl => tl.TripId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(tl => tl.TripDay).WithMany(td => td.TripLocations)
              .HasForeignKey(tl => tl.TripDayId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(tl => tl.Location).WithMany(l => l.TripLocations)
@@ -34,38 +31,9 @@ namespace TripMind.Infrastructure.Persistence.Configurations
         }
     }
 
-    public class SavedItineraryConfiguration : IEntityTypeConfiguration<SavedItinerary>
-    {
-        public void Configure(EntityTypeBuilder<SavedItinerary> e)
-        {
-            e.ToTable("SavedItineraries");
-            e.HasKey(si => si.SavedItineraryId);
-            e.Property(si => si.SavedItineraryId).HasDefaultValueSql("NEWID()");
-            e.Property(si => si.CustomName).HasMaxLength(200);
-            e.Property(si => si.IsFavorite).HasDefaultValue(false);
-            e.Property(si => si.SavedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(si => si.User).WithMany(u => u.SavedItineraries)
-             .HasForeignKey(si => si.UserId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(si => si.Trip).WithMany(t => t.SavedItineraries)
-             .HasForeignKey(si => si.TripId).OnDelete(DeleteBehavior.NoAction);
-        }
-    }
-
-    public class ReviewVoteConfiguration : IEntityTypeConfiguration<ReviewVote>
-    {
-        public void Configure(EntityTypeBuilder<ReviewVote> e)
-        {
-            e.ToTable("ReviewVotes");
-            e.HasKey(rv => rv.ReviewVoteId);
-            e.Property(rv => rv.ReviewVoteId).HasDefaultValueSql("NEWID()");
-            e.Property(rv => rv.VotedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasIndex(rv => new { rv.ReviewId, rv.UserId }).IsUnique().HasDatabaseName("UIX_ReviewVotes_Review_User");
-            e.HasOne(rv => rv.Review).WithMany(r => r.ReviewVotes)
-             .HasForeignKey(rv => rv.ReviewId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(rv => rv.User).WithMany(u => u.ReviewVotes)
-             .HasForeignKey(rv => rv.UserId).OnDelete(DeleteBehavior.Restrict);
-        }
-    }
+    // Matches the REAL SavedItinerary entity: Title/City/Days/People/Budget/
+    // TotalCost/PlanJson/ShareToken/CreatedAt — a saved AI-generated plan.
+    // It does NOT reference Trip — that's a separate concept (FavoriteTrip).
 
     public class UserInterestConfiguration : IEntityTypeConfiguration<UserInterest>
     {
@@ -120,6 +88,59 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(hg => hg.TaggedAt).HasDefaultValueSql("GETUTCDATE()");
             e.HasOne(hg => hg.Location).WithOne(l => l.HiddenGem)
              .HasForeignKey<HiddenGem>(hg => hg.LocationId).OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class FavoritePlaceConfiguration : IEntityTypeConfiguration<FavoritePlace>
+    {
+        public void Configure(EntityTypeBuilder<FavoritePlace> e)
+        {
+            e.ToTable("FavoritePlaces");
+            e.HasKey(f => f.FavoritePlaceId);
+            e.Property(f => f.FavoritePlaceId).HasDefaultValueSql("NEWID()");
+            e.Property(f => f.PlaceId).IsRequired().HasMaxLength(200);
+            e.Property(f => f.Name).IsRequired().HasMaxLength(300);
+            e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            e.HasOne(f => f.User).WithMany()
+             .HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(f => new { f.UserId, f.PlaceId }).IsUnique()
+             .HasDatabaseName("UIX_FavoritePlaces_UserPlace");
+        }
+    }
+
+    public class FavoriteTripConfiguration : IEntityTypeConfiguration<FavoriteTrip>
+    {
+        public void Configure(EntityTypeBuilder<FavoriteTrip> e)
+        {
+            e.ToTable("FavoriteTrips");
+            e.HasKey(f => f.FavoriteTripId);
+            e.Property(f => f.FavoriteTripId).HasDefaultValueSql("NEWID()");
+            e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            e.HasOne(f => f.User).WithMany()
+             .HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(f => f.Trip).WithMany()
+             .HasForeignKey(f => f.TripId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(f => new { f.UserId, f.TripId }).IsUnique()
+             .HasDatabaseName("UIX_FavoriteTrips_UserTrip");
+        }
+    }
+
+    public class TripReviewConfiguration : IEntityTypeConfiguration<TripReview>
+    {
+        public void Configure(EntityTypeBuilder<TripReview> e)
+        {
+            e.ToTable("TripReviews");
+            e.HasKey(r => r.TripReviewId);
+            e.Property(r => r.TripReviewId).HasDefaultValueSql("NEWID()");
+            e.Property(r => r.Rating).IsRequired();
+            e.Property(r => r.Comment).HasMaxLength(1000);
+            e.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            e.HasOne(r => r.Trip).WithMany()
+             .HasForeignKey(r => r.TripId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.User).WithMany()
+             .HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(r => new { r.TripId, r.UserId }).IsUnique()
+             .HasDatabaseName("UIX_TripReviews_TripUser");
         }
     }
 }

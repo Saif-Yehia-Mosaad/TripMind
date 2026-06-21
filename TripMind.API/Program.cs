@@ -43,11 +43,6 @@ else
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TripService>();
-builder.Services.AddScoped<BudgetService>();
-builder.Services.AddScoped<LocationService>();
-builder.Services.AddScoped<ReviewService>();
-builder.Services.AddScoped<ItineraryService>();
-builder.Services.AddScoped<TourPackageService>();
 builder.Services.AddScoped<IImageService, CloudinaryImageService>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"];

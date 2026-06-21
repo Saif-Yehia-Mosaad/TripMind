@@ -20,8 +20,6 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(b => b.OptimizerVersion).HasMaxLength(20);
             e.Property(b => b.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             e.Property(b => b.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(b => b.Trip).WithOne(t => t.Budget)
-             .HasForeignKey<Budget>(b => b.TripId).OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

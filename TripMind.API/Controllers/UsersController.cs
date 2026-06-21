@@ -1,14 +1,15 @@
-using System;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using TripMind.Application.DTOs.User;
-using TripMind.Application.Interfaces;
-using TripMind.Infrastructure.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using TripMind.Application.DTOs.User;
+using TripMind.Application.Interfaces;
+using TripMind.Domain.Entities;
+using TripMind.Infrastructure.Services;
 
 namespace TripMind.API.Controllers
 {
@@ -22,11 +23,13 @@ namespace TripMind.API.Controllers
     {
         private readonly UserService _users;
         private readonly IImageService _images;
+        private readonly TripService _trips;
 
-        public UsersController(UserService users, IImageService images)
+        public UsersController(UserService users, IImageService images, TripService trips)
         {
             _users = users;
             _images = images;
+            _trips = trips;
         }
 
         [HttpGet("me")]
@@ -61,7 +64,6 @@ namespace TripMind.API.Controllers
             }
 
             await _users.UpdateProfileAsync(Me(), new UpdateProfileRequest { ProfilePhotoUrl = url });
-
             return Ok(new UploadPhotoResponse(url));
         }
 
@@ -85,6 +87,9 @@ namespace TripMind.API.Controllers
             await _users.UpdateInterestsAsync(Me(), req.Interests);
             return Ok(req.Interests.Distinct().ToList());
         }
+
+        [HttpGet("me/reviews")]
+        public async Task<IActionResult> GetMyReviews() => Ok(await _trips.GetMyReviewsAsync(Me()));
 
         private Guid Me()
         {

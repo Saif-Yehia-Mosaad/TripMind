@@ -23,8 +23,6 @@ namespace TripMind.Domain.Entities
         public float PopularityScore { get; set; }
         public float AvgRating { get; set; }
         public DateTime CreatedAt { get; set; }
-
-        public ICollection<Review> Reviews { get; set; } = new List<Review>();
         public ICollection<TripLocation> TripLocations { get; set; } = new List<TripLocation>();
         public ICollection<LocationFeature> LocationFeatures { get; set; } = new List<LocationFeature>();
         public HiddenGem? HiddenGem { get; set; }

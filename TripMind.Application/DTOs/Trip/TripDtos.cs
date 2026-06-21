@@ -1,26 +1,79 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TripMind.Domain.Enums;
 
 namespace TripMind.Application.DTOs.Trip
 {
     public sealed class CreateTripRequest
     {
-        [Required] public string DestinationGovernorate { get; set; } = null!;
-        [Required] public DateTime StartDate { get; set; }
-        [Required] public DateTime EndDate { get; set; }
-        [Required][Range(1, 10000000)] public decimal TotalBudgetEgp { get; set; }
-        public List<string> Interests { get; set; } = new();
+        public string? Title { get; set; }
+
+        public string? DestinationGovernorate { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        [Required]
+        public DateTime EndDate { get; set; }
+
+        [JsonPropertyName("people")]
+        public int? People { get; set; }
+
+        [JsonPropertyName("totalBudgetEgp")]
+        public int? TotalBudgetEgp { get; set; }
+
+        [JsonPropertyName("budget")]
+        public int? Budget { get; set; }
+
+        public int? TotalCost { get; set; }
+
+        public JsonElement? Plan { get; set; }
+        public JsonElement? Collected { get; set; }
+        public string? SessionId { get; set; }
+        public bool? IsPublic { get; set; }
+
+        public TripStatus? Status { get; set; }
     }
 
     public sealed class UpdateTripRequest
     {
+        public string? Title { get; set; }
+
         public string? DestinationGovernorate { get; set; }
+
+        [JsonPropertyName("city")]
+        public string? City { get; set; }
+
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        [Range(1, 10000000)] public decimal? TotalBudgetEgp { get; set; }
+
+        public int? People { get; set; }
+
+        [JsonPropertyName("totalBudgetEgp")]
+        public int? TotalBudgetEgp { get; set; }
+
+        [JsonPropertyName("budget")]
+        public int? Budget { get; set; }
+
+        public int? TotalCost { get; set; }
+
+        public JsonElement? Plan { get; set; }
+        public JsonElement? Collected { get; set; }
+        public string? SessionId { get; set; }
         public bool? IsPublic { get; set; }
+    }
+
+    public sealed class RenameTripRequest
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = null!;
     }
 
     public sealed class TripSearchRequest
@@ -32,47 +85,81 @@ namespace TripMind.Application.DTOs.Trip
 
     public sealed class TripResponse
     {
-        public Guid TripId { get; set; }
-        public string DestinationGovernorate { get; set; } = null!;
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-        public int DurationDays { get; set; }
-        public decimal TotalBudgetEgp { get; set; }
-        public string Status { get; set; } = null!;
-        public string ShareToken { get; set; } = null!;
-        public bool IsPublic { get; set; }
-        public BudgetSummary? Budget { get; set; }
-        public List<TripDayResponse> Days { get; set; } = new();
+        public Guid TripId { get; init; }
+
+        public string? Title { get; init; }
+
+        public string DestinationGovernorate { get; init; } = null!;
+
+        [JsonPropertyName("city")]
+        public string City => DestinationGovernorate;
+
+        public DateTime StartDate { get; init; }
+        public DateTime EndDate { get; init; }
+        public int DurationDays { get; init; }
+
+        public int People { get; init; }
+
+        [JsonPropertyName("totalBudgetEgp")]
+        public int TotalBudgetEgp { get; init; }
+
+        [JsonPropertyName("budget")]
+        public int Budget => TotalBudgetEgp;
+
+        public int TotalCost { get; init; }
+
+        public string Status { get; init; } = null!;
+        public string? ShareToken { get; init; }
+        public bool IsPublic { get; init; }
+
+        public string? SessionId { get; init; }
+        public string? CollectedJson { get; init; }
+
+        public string? CoverImageUrl { get; init; }
+        public int PlacesCount { get; init; }
+        public int? ProgressPercent { get; init; }
+
+        public DateTime CreatedAt { get; init; }
+        public DateTime UpdatedAt { get; init; }
+
+        public JsonElement? Plan { get; init; }
     }
 
-    public sealed class BudgetSummary
+    public sealed class TripReviewRequest
     {
-        public decimal Total { get; set; }
-        public decimal Accommodation { get; set; }
-        public decimal Food { get; set; }
-        public decimal Transport { get; set; }
-        public decimal Activities { get; set; }
-        public decimal ActualSpent { get; set; }
-        public float VariancePct { get; set; }
+        [Required]
+        [Range(1, 5)]
+        public int Rating { get; set; }
+
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
     }
 
-    public sealed class TripDayResponse
+    public sealed class TripReviewResponse
     {
-        public int DayNumber { get; set; }
-        public DateTime Date { get; set; }
-        public List<TripLocationResponse> Locations { get; set; } = new();
+        public Guid TripReviewId { get; init; }
+        public Guid TripId { get; init; }
+        public int Rating { get; init; }
+        public string? Comment { get; init; }
+        public DateTime CreatedAt { get; init; }
     }
 
-    public sealed class TripLocationResponse
+    public sealed class MyTripReviewResponse
     {
-        public Guid LocationId { get; set; }
-        public string NameEn { get; set; } = null!;
-        public string NameAr { get; set; } = null!;
-        public string Category { get; set; } = null!;
-        public string TimeSlot { get; set; } = null!;
-        public int DurationMinutes { get; set; }
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public bool IsHiddenGem { get; set; }
+        public Guid TripReviewId { get; init; }
+        public Guid TripId { get; init; }
+        public string Destination { get; init; } = null!;
+        public int Rating { get; init; }
+        public string? Comment { get; init; }
+        public DateTime CreatedAt { get; init; }
+    }
+
+    public sealed class PagedResult<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalCount / (double)PageSize) : 0;
     }
 }
