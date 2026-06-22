@@ -133,8 +133,14 @@ namespace TripMind.Infrastructure.Services
 
         public async Task<JsonElement> GetPlaceByIdAsync(string placeId)
         {
+            if (string.IsNullOrWhiteSpace(placeId))
+                throw new ArgumentException("placeId cannot be null or empty.", nameof(placeId));
+
             HttpResponseMessage response;
-            try { response = await _http.GetAsync($"{_recommendBase}/places/{placeId}"); }
+            try
+            {
+                response = await _http.GetAsync($"{_recommendBase}/places/{Uri.EscapeDataString(placeId)}");
+            }
             catch (TaskCanceledException)
             {
                 throw new InvalidOperationException("Service timed out. Please try again.");
@@ -157,6 +163,9 @@ namespace TripMind.Infrastructure.Services
                     response.StatusCode, $"{_recommendBase}/places/{placeId}", truncated);
                 throw new AiServiceException((int)response.StatusCode, truncated);
             }
+
+            if (string.IsNullOrWhiteSpace(json))
+                throw new InvalidOperationException("AI service returned an empty response body.");
 
             try
             {

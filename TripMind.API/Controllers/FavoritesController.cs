@@ -18,7 +18,8 @@ namespace TripMind.API.Controllers
         public FavoritesController(FavoritesService favorites) => _favorites = favorites;
 
         [HttpGet("places")]
-        public async Task<IActionResult> GetPlaces() => Ok(await _favorites.GetFavoritePlacesAsync(Me()));
+        public async Task<IActionResult> GetPlaces() =>
+            Ok(await _favorites.GetFavoritePlacesAsync(Me()));
 
         [HttpPost("places")]
         public async Task<IActionResult> AddPlace([FromBody] FavoritePlaceRequest req) =>
@@ -27,27 +28,56 @@ namespace TripMind.API.Controllers
         [HttpDelete("places/{placeId}")]
         public async Task<IActionResult> RemovePlace(string placeId)
         {
-            try { await _favorites.RemoveFavoritePlaceAsync(Me(), placeId); return NoContent(); }
-            catch (KeyNotFoundException) { return NotFound(); }
+            try
+            {
+                await _favorites.RemoveFavoritePlaceAsync(Me(), placeId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         [HttpGet("trips")]
-        public async Task<IActionResult> GetTrips() => Ok(await _favorites.GetFavoriteTripsAsync(Me()));
+        public async Task<IActionResult> GetTrips() =>
+            Ok(await _favorites.GetFavoriteTripsAsync(Me()));
 
         [HttpPost("trips/{tripId:guid}")]
         public async Task<IActionResult> AddTrip(Guid tripId)
         {
-            try { return Ok(await _favorites.AddFavoriteTripAsync(Me(), tripId)); }
-            catch (KeyNotFoundException) { return NotFound(new { message = "Trip not found." }); }
+            try
+            {
+                return Ok(await _favorites.AddFavoriteTripAsync(Me(), tripId));
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Trip not found." });
+            }
         }
 
         [HttpDelete("trips/{tripId:guid}")]
         public async Task<IActionResult> RemoveTrip(Guid tripId)
         {
-            try { await _favorites.RemoveFavoriteTripAsync(Me(), tripId); return NoContent(); }
-            catch (KeyNotFoundException) { return NotFound(); }
+            try
+            {
+                await _favorites.RemoveFavoriteTripAsync(Me(), tripId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
-        private Guid Me() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private Guid Me()
+        {
+            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!Guid.TryParse(id, out var userId))
+                throw new UnauthorizedAccessException("Invalid user token.");
+
+            return userId;
+        }
     }
 }

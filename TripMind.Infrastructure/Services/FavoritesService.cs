@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TripMind.Application.DTOs.Favorite;
@@ -12,30 +13,36 @@ namespace TripMind.Infrastructure.Services
     public sealed class FavoritesService
     {
         private readonly IAppDbContext _db;
-        public FavoritesService(IAppDbContext db) => _db = db;
+        private readonly AiService _ai;
 
-        // ── Places ───────────────────────────────────────────────────────────
+        public FavoritesService(IAppDbContext db, AiService ai)
+        {
+            _db = db;
+            _ai = ai;
+        }
+
         public async Task<FavoritePlaceResponse> AddFavoritePlaceAsync(Guid userId, FavoritePlaceRequest req)
         {
+            var place = await _ai.GetPlaceByIdAsync(req.PlaceId);
+
             var existing = await _db.FavoritePlaces
                 .FirstOrDefaultAsync(f => f.UserId == userId && f.PlaceId == req.PlaceId);
-            if (existing != null) return Map(existing);
+
+            if (existing != null)
+                return Map(existing, place);
 
             var fav = new FavoritePlace
             {
                 FavoritePlaceId = Guid.NewGuid(),
                 UserId = userId,
                 PlaceId = req.PlaceId,
-                Name = req.Name,
-                PhotoUrl = req.PhotoUrl,
-                CityEn = req.CityEn,
-                Category = req.Category,
-                Rating = req.Rating,
                 CreatedAt = DateTime.UtcNow
             };
+
             _db.FavoritePlaces.Add(fav);
             await _db.SaveChangesAsync();
-            return Map(fav);
+
+            return Map(fav, place);
         }
 
         public async Task RemoveFavoritePlaceAsync(Guid userId, string placeId)
@@ -43,18 +50,29 @@ namespace TripMind.Infrastructure.Services
             var fav = await _db.FavoritePlaces
                 .FirstOrDefaultAsync(f => f.UserId == userId && f.PlaceId == placeId)
                 ?? throw new KeyNotFoundException("Favorite place not found.");
+
             _db.FavoritePlaces.Remove(fav);
             await _db.SaveChangesAsync();
         }
 
-        public async Task<List<FavoritePlaceResponse>> GetFavoritePlacesAsync(Guid userId) =>
-            await _db.FavoritePlaces
+        public async Task<List<FavoritePlaceResponse>> GetFavoritePlacesAsync(Guid userId)
+        {
+            var favorites = await _db.FavoritePlaces
                 .Where(f => f.UserId == userId)
                 .OrderByDescending(f => f.CreatedAt)
-                .Select(f => Map(f))
                 .ToListAsync();
 
-        // ── Trips ────────────────────────────────────────────────────────────
+            var result = new List<FavoritePlaceResponse>(favorites.Count);
+
+            foreach (var fav in favorites)
+            {
+                var place = await _ai.GetPlaceByIdAsync(fav.PlaceId);
+                result.Add(Map(fav, place));
+            }
+
+            return result;
+        }
+
         public async Task<FavoriteTripResponse> AddFavoriteTripAsync(Guid userId, Guid tripId)
         {
             var tripExists = await _db.Trips.AnyAsync(t => t.TripId == tripId && t.UserId == userId);
@@ -62,7 +80,9 @@ namespace TripMind.Infrastructure.Services
 
             var existing = await _db.FavoriteTrips
                 .FirstOrDefaultAsync(f => f.UserId == userId && f.TripId == tripId);
-            if (existing != null) return MapTrip(existing);
+
+            if (existing != null)
+                return MapTrip(existing);
 
             var fav = new FavoriteTrip
             {
@@ -71,6 +91,7 @@ namespace TripMind.Infrastructure.Services
                 TripId = tripId,
                 CreatedAt = DateTime.UtcNow
             };
+
             _db.FavoriteTrips.Add(fav);
             await _db.SaveChangesAsync();
             return MapTrip(fav);
@@ -81,6 +102,7 @@ namespace TripMind.Infrastructure.Services
             var fav = await _db.FavoriteTrips
                 .FirstOrDefaultAsync(f => f.UserId == userId && f.TripId == tripId)
                 ?? throw new KeyNotFoundException("Favorite trip not found.");
+
             _db.FavoriteTrips.Remove(fav);
             await _db.SaveChangesAsync();
         }
@@ -92,15 +114,11 @@ namespace TripMind.Infrastructure.Services
                 .Select(f => MapTrip(f))
                 .ToListAsync();
 
-        private static FavoritePlaceResponse Map(FavoritePlace f) => new()
+        private static FavoritePlaceResponse Map(FavoritePlace f, JsonElement place) => new()
         {
             FavoritePlaceId = f.FavoritePlaceId,
             PlaceId = f.PlaceId,
-            Name = f.Name,
-            PhotoUrl = f.PhotoUrl,
-            CityEn = f.CityEn,
-            Category = f.Category,
-            Rating = f.Rating,
+            Place = place,
             CreatedAt = f.CreatedAt
         };
 

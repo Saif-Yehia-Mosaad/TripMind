@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using TripMind.Domain.Entities;
 
 namespace TripMind.Application.Interfaces

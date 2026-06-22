@@ -25,14 +25,9 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(t => t.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             e.HasOne(t => t.User)
-             .WithMany()
-             .HasForeignKey(t => t.UserId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            e.HasMany(t => t.TripReviews)
-             .WithOne(r => r.Trip)
-             .HasForeignKey(r => r.TripId)
-             .OnDelete(DeleteBehavior.Cascade);
+            .WithMany(u => u.Trips)
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(t => t.ShareToken)
              .IsUnique()

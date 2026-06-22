@@ -99,7 +99,6 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.HasKey(f => f.FavoritePlaceId);
             e.Property(f => f.FavoritePlaceId).HasDefaultValueSql("NEWID()");
             e.Property(f => f.PlaceId).IsRequired().HasMaxLength(200);
-            e.Property(f => f.Name).IsRequired().HasMaxLength(300);
             e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             e.HasOne(f => f.User).WithMany()
              .HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
@@ -116,10 +115,15 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.HasKey(f => f.FavoriteTripId);
             e.Property(f => f.FavoriteTripId).HasDefaultValueSql("NEWID()");
             e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(f => f.User).WithMany()
-             .HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(f => f.Trip).WithMany()
-             .HasForeignKey(f => f.TripId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(f => f.User)
+              .WithMany()
+              .HasForeignKey(f => f.UserId)
+              .OnDelete(DeleteBehavior.NoAction);
+
+            e.HasOne(f => f.Trip)
+             .WithMany()
+             .HasForeignKey(f => f.TripId)
+             .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(f => new { f.UserId, f.TripId }).IsUnique()
              .HasDatabaseName("UIX_FavoriteTrips_UserTrip");
         }
@@ -135,8 +139,10 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(r => r.Rating).IsRequired();
             e.Property(r => r.Comment).HasMaxLength(1000);
             e.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(r => r.Trip).WithMany()
-             .HasForeignKey(r => r.TripId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Trip)
+            .WithMany(t => t.TripReviews)
+            .HasForeignKey(r => r.TripId)
+            .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.User).WithMany()
              .HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(r => new { r.TripId, r.UserId }).IsUnique()

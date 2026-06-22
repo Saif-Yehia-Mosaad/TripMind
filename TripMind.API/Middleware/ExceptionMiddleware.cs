@@ -46,7 +46,7 @@ namespace TripMind.API.Middleware
                 type     = $"https://httpstatuses.com/{status}",
                 title,
                 status,
-                detail   = ex.Message,
+                detail = ex.ToString(),
                 instance = ctx.Request.Path.Value
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         }
