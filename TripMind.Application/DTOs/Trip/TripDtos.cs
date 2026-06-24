@@ -10,7 +10,6 @@ namespace TripMind.Application.DTOs.Trip
     public sealed class CreateTripRequest
     {
         public string? Title { get; set; }
-
         public string? DestinationGovernorate { get; set; }
 
         [JsonPropertyName("city")]
@@ -27,16 +26,13 @@ namespace TripMind.Application.DTOs.Trip
 
         [JsonPropertyName("totalBudgetEgp")]
         [Required]
-        public int TotalBudgetEgp { get; set; }   // int عادي، مش int?، ومفيش Budget تاني
+        public int TotalBudgetEgp { get; set; }
 
         public int? TotalCost { get; set; }
-
         public JsonElement? Plan { get; set; }
         public JsonElement? Collected { get; set; }
         public string? SessionId { get; set; }
         public bool? IsPublic { get; set; }
-
-        public TripStatus? Status { get; set; }
     }
 
     public sealed class UpdateTripRequest

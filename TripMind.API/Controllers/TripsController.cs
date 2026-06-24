@@ -67,24 +67,6 @@ namespace TripMind.API.Controllers
             catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
         }
 
-        [HttpPatch("{id:guid}/confirm")]
-        [ProducesResponseType(typeof(TripResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> Confirm(Guid id)
-        {
-            try { return Ok(await _trips.ConfirmAsync(Me, id)); }
-            catch (KeyNotFoundException) { return NotFound(); }
-            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-        }
-
-        [HttpPatch("{id:guid}/complete")]
-        [ProducesResponseType(typeof(TripResponse), StatusCodes.Status200OK)]
-        public async Task<IActionResult> Complete(Guid id)
-        {
-            try { return Ok(await _trips.CompleteAsync(Me, id)); }
-            catch (KeyNotFoundException) { return NotFound(); }
-            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-        }
-
         [HttpPost("{id:guid}/share")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Share(Guid id)

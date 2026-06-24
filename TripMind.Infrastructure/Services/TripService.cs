@@ -41,7 +41,7 @@ namespace TripMind.Infrastructure.Services
                 SessionId = string.IsNullOrWhiteSpace(req.SessionId) ? Guid.NewGuid().ToString("N") : req.SessionId.Trim(),
                 CollectedJson = req.Collected.HasValue ? req.Collected.Value.GetRawText() : null,
                 PlanJson = req.Plan.HasValue ? req.Plan.Value.GetRawText() : "{}",
-                Status = req.Status ?? TripStatus.Draft,
+                Status = TripStatus.Draft,
                 IsPublic = req.IsPublic ?? false,
                 ShareToken = GenerateShareToken(),
                 CreatedAt = now,
@@ -166,12 +166,6 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
             return MapToResponse(trip, includePlan: false);
         }
 
-        public Task<TripResponse> ConfirmAsync(Guid userId, Guid tripId)
-            => UpdateStatusAsync(userId, tripId, TripStatus.Upcoming);
-
-        public Task<TripResponse> CompleteAsync(Guid userId, Guid tripId)
-            => UpdateStatusAsync(userId, tripId, TripStatus.Completed);
-
         public async Task<string> CreateShareLinkAsync(Guid userId, Guid tripId)
         {
             var trip = await _db.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.UserId == userId)
@@ -190,7 +184,7 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
             var trip = await _db.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.UserId == userId)
                 ?? throw new KeyNotFoundException("Trip not found.");
 
-            if (trip.Status != TripStatus.Completed)
+            if (trip.Status != TripStatus.Complete)
                 throw new InvalidOperationException("You can only review a completed trip.");
 
             var existing = await _db.TripReviews
@@ -322,8 +316,8 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
 
         private static void EnsureEditable(Trip trip)
         {
-            if (trip.Status == TripStatus.Completed || trip.Status == TripStatus.Cancelled)
-                throw new InvalidOperationException("Cannot edit a completed or cancelled trip.");
+            if (trip.Status == TripStatus.Complete)
+                throw new InvalidOperationException("Cannot edit a completed trip.");
         }
 
         private static void ValidateDates(DateTime startDate, DateTime endDate)
@@ -342,15 +336,14 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
 
             var valid = (current, next) switch
             {
-                (TripStatus.Draft, TripStatus.Upcoming) => true,
-                (TripStatus.Draft, TripStatus.Cancelled) => true,
-                (TripStatus.Upcoming, TripStatus.Completed) => true,
-                (TripStatus.Upcoming, TripStatus.Cancelled) => true,
+                (TripStatus.Draft, TripStatus.InProgress) => true,
+                (TripStatus.InProgress, TripStatus.Complete) => true,
                 _ => false
             };
 
             if (!valid)
-                throw new InvalidOperationException($"Cannot transition trip from {current} to {next}.");
+                throw new InvalidOperationException(
+                    $"Cannot transition trip from {current} to {next}.");
         }
 
         private static string GenerateShareToken() =>
@@ -376,7 +369,7 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
                 ? t.DurationDays
                 : GetDurationDays(t.StartDate, t.EndDate);
 
-            int? progress = t.Status == TripStatus.Draft
+            int? progress = t.Status is TripStatus.Draft or TripStatus.InProgress
                 ? CalculateProgress(placesCount, duration)
                 : null;
 
