@@ -235,5 +235,26 @@ namespace TripMind.Infrastructure.Services
             if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value;
             return value[..maxLength];
         }
+       public async Task<JsonElement> NearbyAsync(NearbyRequest req)
+    => await PostAsync($"{_recommendBase}/places/nearby", new
+    {
+        user_lat = req.UserLat,
+        user_lng = req.UserLng,
+        radius_km = req.RadiusKm,
+        filters = req.Filters == null ? null : new
+        {
+            category = req.Filters.Category,
+            interests = req.Filters.Interests,
+            min_rating = req.Filters.MinRating,
+            max_rating = req.Filters.MaxRating,
+            min_price = req.Filters.MinPrice,
+            max_price = req.Filters.MaxPrice,
+            is_hidden_gem = req.Filters.HiddenGem,
+            sort_by = req.Filters.SortBy,
+            order = req.Filters.Order
+        },
+        page = req.Page,
+        limit = req.Limit
+    });
     }
 }

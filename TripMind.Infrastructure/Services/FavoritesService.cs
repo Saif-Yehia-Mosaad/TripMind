@@ -62,27 +62,37 @@ namespace TripMind.Infrastructure.Services
                 .OrderByDescending(f => f.CreatedAt)
                 .ToListAsync();
 
-            var result = new List<FavoritePlaceResponse>(favorites.Count);
-
-            foreach (var fav in favorites)
+            // بدل sequential await في loop (N requests متتالية)، بقت parallel
+            var tasks = favorites.Select(async fav =>
             {
-                var place = await _ai.GetPlaceByIdAsync(fav.PlaceId);
-                result.Add(Map(fav, place));
-            }
+                try
+                {
+                    var place = await _ai.GetPlaceByIdAsync(fav.PlaceId);
+                    return Map(fav, place);
+                }
+                catch (KeyNotFoundException)
+                {
+                    // المكان ممكن يكون مسحوه من مصدر الـ AI الخارجي
+                    // - بدل ما نكسّر الليستة كلها، نتجاهله بس
+                    return null;
+                }
+            });
 
-            return result;
+            var results = await Task.WhenAll(tasks);
+            return results.Where(r => r != null).ToList()!;
         }
 
         public async Task<FavoriteTripResponse> AddFavoriteTripAsync(Guid userId, Guid tripId)
         {
-            var tripExists = await _db.Trips.AnyAsync(t => t.TripId == tripId && t.UserId == userId);
-            if (!tripExists) throw new KeyNotFoundException("Trip not found.");
+            var trip = await _db.Trips
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.UserId == userId)
+                ?? throw new KeyNotFoundException("Trip not found.");
 
             var existing = await _db.FavoriteTrips
                 .FirstOrDefaultAsync(f => f.UserId == userId && f.TripId == tripId);
 
             if (existing != null)
-                return MapTrip(existing);
+                return MapTrip(existing, trip);
 
             var fav = new FavoriteTrip
             {
@@ -94,7 +104,8 @@ namespace TripMind.Infrastructure.Services
 
             _db.FavoriteTrips.Add(fav);
             await _db.SaveChangesAsync();
-            return MapTrip(fav);
+
+            return MapTrip(fav, trip);
         }
 
         public async Task RemoveFavoriteTripAsync(Guid userId, Guid tripId)
@@ -107,12 +118,23 @@ namespace TripMind.Infrastructure.Services
             await _db.SaveChangesAsync();
         }
 
-        public async Task<List<FavoriteTripResponse>> GetFavoriteTripsAsync(Guid userId) =>
-            await _db.FavoriteTrips
+        public async Task<List<FavoriteTripResponse>> GetFavoriteTripsAsync(Guid userId)
+        {
+            var favorites = await _db.FavoriteTrips
                 .Where(f => f.UserId == userId)
                 .OrderByDescending(f => f.CreatedAt)
-                .Select(f => MapTrip(f))
                 .ToListAsync();
+
+            var tripIds = favorites.Select(x => x.TripId).ToList();
+
+            var trips = await _db.Trips
+                .Where(t => tripIds.Contains(t.TripId))
+                .ToDictionaryAsync(t => t.TripId);
+
+            return favorites
+                .Select(f => MapTrip(f, trips.TryGetValue(f.TripId, out var trip) ? trip : null))
+                .ToList();
+        }
 
         private static FavoritePlaceResponse Map(FavoritePlace f, JsonElement place) => new()
         {
@@ -122,10 +144,15 @@ namespace TripMind.Infrastructure.Services
             CreatedAt = f.CreatedAt
         };
 
-        private static FavoriteTripResponse MapTrip(FavoriteTrip f) => new()
+        private static FavoriteTripResponse MapTrip(FavoriteTrip f, Trip? trip) => new()
         {
             FavoriteTripId = f.FavoriteTripId,
             TripId = f.TripId,
+            Destination = trip?.DestinationGovernorate ?? string.Empty,
+            StartDate = trip?.StartDate ?? default,
+            EndDate = trip?.EndDate ?? default,
+            DurationDays = trip?.DurationDays ?? 0,
+            Status = trip?.Status.ToString() ?? string.Empty,
             CreatedAt = f.CreatedAt
         };
     }

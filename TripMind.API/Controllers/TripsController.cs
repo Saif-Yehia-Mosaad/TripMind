@@ -155,6 +155,38 @@ namespace TripMind.API.Controllers
             }
         }
 
+        [HttpGet("{id:guid}/reviews")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(List<TripReviewWithUserResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetReviews(Guid id)
+        {
+            try
+            {
+                return Ok(await _trips.GetTripReviewsAsync(id));
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Trip not found." });
+            }
+        }
+
+        // أضف ده في TripsController.cs، بعد GetById وقبل UpdatePlan مثلاً
+
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            try
+            {
+                await _trips.DeleteTripAsync(Me, id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Trip not found." });
+            }
+        }
+
         [HttpGet("{id:guid}/review/me")]
         [ProducesResponseType(typeof(TripReviewResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyReview(Guid id)

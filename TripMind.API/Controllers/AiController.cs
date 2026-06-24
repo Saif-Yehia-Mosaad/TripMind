@@ -13,7 +13,7 @@ namespace TripMind.API.Controllers
     [ApiController]
     [Route("api/v1/ai")]
     [Produces("application/json")]
-    //[Authorize]
+    [Authorize]
     public sealed class AiController : ControllerBase
     {
         private readonly AiService _ai;
@@ -48,6 +48,10 @@ namespace TripMind.API.Controllers
         [HttpPost("places/search")]
         public async Task<IActionResult> SearchPlaces([FromBody] SearchPlacesRequest req)
             => await Run(() => _ai.SearchPlacesAsync(req));
+
+        [HttpPost("places/nearby")]
+        public async Task<IActionResult> Nearby([FromBody] NearbyRequest req)
+            => await Run(() => _ai.NearbyAsync(req));
 
         [HttpPost("places/top-rated")]
         public async Task<IActionResult> TopRated([FromBody] TopRatedRequest req)

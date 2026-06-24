@@ -250,6 +250,28 @@ namespace TripMind.Infrastructure.Services
             return review == null ? null : MapReview(review);
         }
 
+        public async Task<List<TripReviewWithUserResponse>> GetTripReviewsAsync(Guid tripId)
+        {
+            var tripExists = await _db.Trips.AnyAsync(t => t.TripId == tripId);
+            if (!tripExists)
+                throw new KeyNotFoundException("Trip not found.");
+
+            return await _db.TripReviews
+                .Where(r => r.TripId == tripId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new TripReviewWithUserResponse
+                {
+                    TripReviewId = r.TripReviewId,
+                    TripId = r.TripId,
+                    UserId = r.UserId,
+                    DisplayName = r.User.DisplayName,
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+        }
+
         public async Task<List<MyTripReviewResponse>> GetMyReviewsAsync(Guid userId) =>
             await _db.TripReviews
                 .Include(r => r.Trip)

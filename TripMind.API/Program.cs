@@ -46,12 +46,10 @@ builder.Services.AddScoped<TripService>();
 builder.Services.AddScoped<FavoritesService>();
 builder.Services.AddScoped<IImageService, CloudinaryImageService>();
 
-var jwtSecret = builder.Configuration["Jwt:Secret"];
-if (string.IsNullOrEmpty(jwtSecret) && builder.Environment.IsDevelopment())
-    jwtSecret = "ThisIsMySecretKeyForTripMindAppMinimum32Chars!";
-else if (string.IsNullOrEmpty(jwtSecret))
-    throw new InvalidOperationException("Jwt:Secret is not configured.");
-
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException(
+        "Jwt:Secret is not configured. Set it via dotnet user-secrets (dev) " +
+        "or an environment variable / secret manager (prod) — never hardcode it in source.");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt => opt.TokenValidationParameters = new TokenValidationParameters
     {
@@ -142,15 +140,23 @@ app.Lifetime.ApplicationStarted.Register(() =>
         while (true)
         {
             await Task.Delay(TimeSpan.FromHours(1));
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<TripMindDbContext>();
-            var expired = await db.Users
-                .Where(u => !u.IsEmailVerified && u.CreatedAt < DateTime.UtcNow.AddHours(-24))
-                .ToListAsync();
-            if (expired.Any())
+            try
             {
-                db.Users.RemoveRange(expired);
-                await db.SaveChangesAsync();
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<TripMindDbContext>();
+                var expired = await db.Users
+                    .Where(u => !u.IsEmailVerified && u.CreatedAt < DateTime.UtcNow.AddHours(-24))
+                    .ToListAsync();
+                if (expired.Any())
+                {
+                    db.Users.RemoveRange(expired);
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                var logger = app.Services.GetRequiredService<ILogger<Program>>();
+                logger.LogError(ex, "Unverified-user cleanup job failed; will retry next cycle.");
             }
         }
     });

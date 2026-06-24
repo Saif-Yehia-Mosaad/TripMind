@@ -202,7 +202,17 @@ namespace TripMind.Application.DTOs.Ai
 
         [Range(1, 50)] public int Limit { get; set; } = 10;
     }
+    public sealed class NearbyRequest
+    {
+        public float UserLat { get; set; }
+        public float UserLng { get; set; }
+        public float? RadiusKm { get; set; }
 
+        public PlaceFiltersRequest? Filters { get; set; }
+
+        public int Page { get; set; } = 1;
+        public int Limit { get; set; } = 10;
+    }
     public sealed class TopRatedRequest
     {
         public PlaceFiltersRequest? Filters { get; set; }
