@@ -21,7 +21,7 @@ namespace TripMind.Infrastructure.Services
         public async Task<TripResponse> CreateTripAsync(Guid userId, CreateTripRequest req)
         {
             var destination = ResolveDestination(req.DestinationGovernorate, req.City);
-            var totalBudget = ResolveBudget(req.TotalBudgetEgp, req.Budget);
+            var totalBudget = req.TotalBudgetEgp;
             var now = DateTime.UtcNow;
 
             ValidateDates(req.StartDate, req.EndDate);
@@ -54,19 +54,14 @@ namespace TripMind.Infrastructure.Services
             return MapToResponse(trip, includePlan: true);
         }
 
-        private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNull = false)
-        {
-            if (totalBudgetEgp.HasValue)
-                return totalBudgetEgp.Value;
-
-            if (budget.HasValue)
-                return budget.Value;
-
-            if (allowNull)
-                return 0;
-
-            throw new InvalidOperationException("Budget is required.");
-        }
+        // شيل الميثود دي كلها
+private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNull = false)
+{
+    if (totalBudgetEgp.HasValue) return totalBudgetEgp.Value;
+    if (budget.HasValue) return budget.Value;
+    if (allowNull) return 0;
+    throw new InvalidOperationException("Budget is required.");
+}
 
         public async Task<TripResponse> UpdateTripAsync(Guid userId, Guid tripId, UpdateTripRequest req)
         {
@@ -306,11 +301,8 @@ namespace TripMind.Infrastructure.Services
             if (req.People.HasValue)
                 trip.People = req.People.Value;
 
-            var budget = ResolveBudget(req.TotalBudgetEgp, req.Budget, allowNull: true);
             if (req.TotalBudgetEgp.HasValue)
-                trip.TotalBudgetEgp = req.TotalBudgetEgp.Value;
-            else if (req.Budget.HasValue)
-                trip.TotalBudgetEgp = req.Budget.Value;
+                trip.TotalBudgetEgp = req.TotalBudgetEgp.Value;   // .Value هنا لازم تكون موجودة، عشان نحول من int? لـ int
 
             if (req.TotalCost.HasValue)
                 trip.TotalCost = req.TotalCost.Value;

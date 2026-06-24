@@ -26,10 +26,8 @@ namespace TripMind.Application.DTOs.Trip
         public int? People { get; set; }
 
         [JsonPropertyName("totalBudgetEgp")]
-        public int? TotalBudgetEgp { get; set; }
-
-        [JsonPropertyName("budget")]
-        public int? Budget { get; set; }
+        [Required]
+        public int TotalBudgetEgp { get; set; }   // int عادي، مش int?، ومفيش Budget تاني
 
         public int? TotalCost { get; set; }
 
@@ -56,10 +54,7 @@ namespace TripMind.Application.DTOs.Trip
         public int? People { get; set; }
 
         [JsonPropertyName("totalBudgetEgp")]
-        public int? TotalBudgetEgp { get; set; }
-
-        [JsonPropertyName("budget")]
-        public int? Budget { get; set; }
+        public int? TotalBudgetEgp { get; set; }   // هنا فاضل int? لأنه partial update، بس مفيش Budget تاني
 
         public int? TotalCost { get; set; }
 
@@ -107,9 +102,6 @@ namespace TripMind.Application.DTOs.Trip
 
         [JsonPropertyName("totalBudgetEgp")]
         public int TotalBudgetEgp { get; init; }
-
-        [JsonPropertyName("budget")]
-        public int Budget => TotalBudgetEgp;
 
         public int TotalCost { get; init; }
 
