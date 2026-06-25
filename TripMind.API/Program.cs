@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -15,6 +15,8 @@ using TripMind.Infrastructure.Services;
 using TripMind.Infrastructure.Email;
 using TripMind.Infrastructure.Persistence;
 using TripMind.Infrastructure.Security;
+using System.Linq;
+using TripMind.Infrastructure.BackgroundJobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,31 +27,40 @@ builder.Services.AddDbContext<TripMindDbContext>(opt =>
           .CommandTimeout(30)
           .EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null)));
 
-builder.Services.AddHttpClient<AiService>();
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 2 * 1024 * 1024; // 2 MB
+});
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<TripMindDbContext>());
 builder.Services.AddScoped<IJwtProvider,    JwtProvider>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-var emailProvider = builder.Configuration["Email:Provider"];
-if (emailProvider == "Brevo")
-{
-    var apiKey = builder.Configuration["Email:ApiKey"]!;
-    builder.Services.AddScoped<IEmailSender>(_ => new BrevoEmailSender(apiKey));
-}
-else
-{
-    builder.Services.AddScoped<IEmailSender, StubEmailSender>();
-}
 
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<TripService>();
-builder.Services.AddScoped<FavoritesService>();
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<IFavoritesService, FavoritesService>();
 builder.Services.AddScoped<IImageService, CloudinaryImageService>();
+builder.Services.AddHttpClient<IAiService, AiService>();
+builder.Services.AddHostedService<UnverifiedUserCleanupJob>();
 
+builder.Services.AddHttpClient("Facebook");
+
+builder.Services.AddHttpClient<BrevoEmailSender>();
+
+builder.Services.AddScoped<IEmailSender>(sp =>
+{
+    var provider = sp.GetRequiredService<IConfiguration>()["Email:Provider"];
+
+    return provider == "Brevo"
+        ? sp.GetRequiredService<BrevoEmailSender>()
+        : new StubEmailSender();
+});
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException(
         "Jwt:Secret is not configured. Set it via dotnet user-secrets (dev) " +
-        "or an environment variable / secret manager (prod) � never hardcode it in source.");
+        "or an environment variable / secret manager (prod) — never hardcode it in source.");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt => opt.TokenValidationParameters = new TokenValidationParameters
     {
@@ -85,8 +96,16 @@ builder.Services.AddControllers()
         };
     });
 
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(opt =>
-    opt.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    opt.AddDefaultPolicy(p => p
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+        .AllowCredentials()));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -116,51 +135,32 @@ builder.Services.AddHealthChecks().AddDbContextCheck<TripMindDbContext>();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<TripMindDbContext>();
-    await db.Database.MigrateAsync();
+    try { await db.Database.MigrateAsync(); }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogCritical(ex, "Database migration failed at startup.");
+        throw; // فشل سريع وواضح بدل تشغيل API بقاعدة بيانات غير متوافقة
+    }
 }
 
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<RateLimitingMiddleware>();
 app.UseResponseCompression();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "TripMind API v1");
-    c.RoutePrefix = string.Empty;
-});
-
-app.Lifetime.ApplicationStarted.Register(() =>
-{
-    _ = Task.Run(async () =>
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        while (true)
-        {
-            await Task.Delay(TimeSpan.FromHours(1));
-            try
-            {
-                using var scope = app.Services.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<TripMindDbContext>();
-                var expired = await db.Users
-                    .Where(u => !u.IsEmailVerified && u.CreatedAt < DateTime.UtcNow.AddHours(-24))
-                    .ToListAsync();
-                if (expired.Any())
-                {
-                    db.Users.RemoveRange(expired);
-                    await db.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                var logger = app.Services.GetRequiredService<ILogger<Program>>();
-                logger.LogError(ex, "Unverified-user cleanup job failed; will retry next cycle.");
-            }
-        }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "TripMind API v1");
+        c.RoutePrefix = string.Empty;
     });
-});
+}
 
 app.UseHttpsRedirection();
 app.UseCors();

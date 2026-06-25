@@ -10,7 +10,9 @@ namespace TripMind.Application.DTOs.Ai
     // ── Generate Plan ─────────────────────────────────────────────────────────
     public sealed class GeneratePlanRequest
     {
+
         [Required]
+        [MaxLength(100)]
         [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateCity))]
         public string City { get; set; } = null!;
 
@@ -22,33 +24,49 @@ namespace TripMind.Application.DTOs.Ai
         [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateDisplayInterests))]
         public List<string> Interests { get; set; } = new();
 
+        [MaxLength(500)]
         public string? MustInclude { get; set; }
     }
 
     // ── ChatBot ───────────────────────────────────────────────────────────────
     public sealed class ChatRequest
     {
-        [Required] public string SessionId { get; set; } = null!;
-        [Required] public string Message { get; set; } = null!;
+        [Required]
+        [MaxLength(100)]
+        public string SessionId { get; set; } = null!;
+
+        [Required]
+        [MaxLength(2000)]
+        public string Message { get; set; } = null!;
         public ChatCollected Collected { get; set; } = new();
         public ChatCardAnswersRequest? CardAnswers { get; set; }
     }
 
     public sealed class ChatCollected
     {
+        [MaxLength(100)]
         public string? Destination { get; set; }
+
         public int? Days { get; set; }
         public int? Budget { get; set; }
+
         public List<string> Interests { get; set; } = new();
+
         public int? People { get; set; }
+
         public List<string> MustInclude { get; set; } = new();
     }
 
     // ── EditBot ───────────────────────────────────────────────────────────────
     public sealed class EditRequest
     {
-        [Required] public string TargetChange { get; set; } = null!;
-        [Required] public string Destination { get; set; } = null!;
+        [Required]
+        [MaxLength(500)]
+        public string TargetChange { get; set; } = null!;
+
+        [Required]
+        [MaxLength(100)]
+        public string Destination { get; set; } = null!;
         [Required][Range(1, 7)] public int Days { get; set; }
         [Required][Range(1, 10000000)] public int Budget { get; set; }
         [Required][Range(1, 50)] public int People { get; set; }
@@ -128,6 +146,7 @@ namespace TripMind.Application.DTOs.Ai
         public string Role { get; set; } = null!;
 
         [Required]
+        [MaxLength(4000)]
         [JsonPropertyName("content")]
         public string Content { get; set; } = null!;
     }
@@ -135,7 +154,10 @@ namespace TripMind.Application.DTOs.Ai
     // ── Recommendations ───────────────────────────────────────────────────────
     public sealed class HomeRequest
     {
+
+        [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateCity))]
         public string? City { get; set; }
+
         public int? Seed { get; set; }
     }
 
@@ -171,7 +193,7 @@ namespace TripMind.Application.DTOs.Ai
 
         public PlaceFiltersRequest? Filters { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
+        [Range(1, 10000, ErrorMessage = "Page must be between 1 and 10000.")]
         public int Page { get; set; } = 1;
 
         [Range(1, 50)]
@@ -194,10 +216,11 @@ namespace TripMind.Application.DTOs.Ai
 
     public sealed class SearchPlacesRequest
     {
+        [MaxLength(500)]
         public string? Query { get; set; }
         public PlaceFiltersRequest? Filters { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
+        [Range(1, 10000, ErrorMessage = "Page must be between 1 and 10000.")]
         public int Page { get; set; } = 1;
 
         [Range(1, 50)] public int Limit { get; set; } = 10;
@@ -209,15 +232,18 @@ namespace TripMind.Application.DTOs.Ai
         public float? RadiusKm { get; set; }
 
         public PlaceFiltersRequest? Filters { get; set; }
+        [Range(1, 10000, ErrorMessage = "Page must be between 1 and 10000.")]
+
 
         public int Page { get; set; } = 1;
+        [Range(1, 50)]
         public int Limit { get; set; } = 10;
     }
     public sealed class TopRatedRequest
     {
         public PlaceFiltersRequest? Filters { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
+        [Range(1, 10000, ErrorMessage = "Page must be between 1 and 10000.")]
         public int Page { get; set; } = 1;
 
         [Range(1, 50)] public int Limit { get; set; } = 10;
@@ -246,7 +272,7 @@ namespace TripMind.Application.DTOs.Ai
         [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateOrder))]
         public string Order { get; set; } = "desc";
 
-        [Range(1, int.MaxValue, ErrorMessage = "Page must be 1 or greater.")]
+        [Range(1, 10000, ErrorMessage = "Page must be between 1 and 10000.")]
         public int Page { get; set; } = 1;
 
         [Range(1, 50)] public int Limit { get; set; } = 10;

@@ -1,20 +1,23 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using TripMind.Application.DTOs.Trip;
+using TripMind.Application.Interfaces;
 using TripMind.Domain.Entities;
 using TripMind.Domain.Enums;
 using TripMind.Infrastructure.Persistence;
 
 namespace TripMind.Infrastructure.Services
 {
-    public sealed class TripService
+    public class TripService : ITripService
     {
         private readonly TripMindDbContext _db;
+        private const int MaxCollectedLength = 50_000;
 
         public TripService(TripMindDbContext db) => _db = db;
 
@@ -25,6 +28,17 @@ namespace TripMind.Infrastructure.Services
             var now = DateTime.UtcNow;
 
             ValidateDates(req.StartDate, req.EndDate);
+
+            if (req.Plan.HasValue)
+                TripPlanValidator.Validate(req.Plan.Value);
+
+            if (req.Collected.HasValue)
+            {
+                var rawCollected = req.Collected.Value.GetRawText();
+
+                if (rawCollected.Length > MaxCollectedLength)
+                    throw new ValidationException("Collected payload is too large.");
+            }
 
             var trip = new Trip
             {
@@ -53,15 +67,6 @@ namespace TripMind.Infrastructure.Services
 
             return MapToResponse(trip, includePlan: true);
         }
-
-        // شيل الميثود دي كلها
-private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNull = false)
-{
-    if (totalBudgetEgp.HasValue) return totalBudgetEgp.Value;
-    if (budget.HasValue) return budget.Value;
-    if (allowNull) return 0;
-    throw new InvalidOperationException("Budget is required.");
-}
 
         public async Task<TripResponse> UpdateTripAsync(Guid userId, Guid tripId, UpdateTripRequest req)
         {
@@ -93,7 +98,8 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
                 ?? throw new KeyNotFoundException("Trip not found.");
 
             EnsureEditable(trip);
-
+            if (string.IsNullOrWhiteSpace(req.Title))
+                throw new ValidationException("Title cannot be empty.");
             trip.Title = req.Title.Trim();
             trip.UpdatedAt = DateTime.UtcNow;
 
@@ -110,33 +116,72 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
             return MapToResponse(trip, includePlan: true);
         }
 
-        public async Task<TripResponse> GetByShareTokenAsync(string token)
+        public async Task<PublicTripResponse> GetByShareTokenAsync(string token)
         {
-            var trip = await _db.Trips
-                .FirstOrDefaultAsync(t => t.ShareToken == token)
+            var trip = await _db.Trips.FirstOrDefaultAsync(t => t.ShareToken == token && t.IsPublic)
                 ?? throw new KeyNotFoundException("Shared trip not found.");
 
-            return MapToResponse(trip, includePlan: true);
+            var full = MapToResponse(trip, includePlan: true);
+            return new PublicTripResponse
+            {
+                TripId = full.TripId,
+                Title = full.Title,
+                DestinationGovernorate = full.DestinationGovernorate,
+                StartDate = full.StartDate,
+                EndDate = full.EndDate,
+                DurationDays = full.DurationDays,
+                People = full.People,
+                Status = full.Status,
+                CoverImageUrl = full.CoverImageUrl,
+                PlacesCount = full.PlacesCount,
+                Plan = full.Plan
+            };
         }
 
         public async Task<PagedResult<TripResponse>> GetUserTripsAsync(Guid userId, TripSearchRequest req)
         {
-            var query = _db.Trips.Where(t => t.UserId == userId);
+            var query = _db.Trips
+                .Where(t => t.UserId == userId);
 
             if (req.Status.HasValue)
+            {
                 query = query.Where(t => t.Status == req.Status.Value);
+            }
+
+            query = (req.SortBy, req.Order) switch
+            {
+                ("createdAt", "asc") =>
+                    query.OrderBy(t => t.CreatedAt),
+
+                ("createdAt", _) =>
+                    query.OrderByDescending(t => t.CreatedAt),
+
+                ("startDate", "asc") =>
+                    query.OrderBy(t => t.StartDate),
+
+                ("startDate", _) =>
+                    query.OrderByDescending(t => t.StartDate),
+
+                ("updatedAt", "asc") =>
+                    query.OrderBy(t => t.UpdatedAt),
+
+                _ =>
+                    query.OrderByDescending(t => t.UpdatedAt)
+            };
 
             var total = await query.CountAsync();
 
             var trips = await query
-                .OrderByDescending(t => t.UpdatedAt)
                 .Skip((req.Page - 1) * req.PageSize)
                 .Take(req.PageSize)
                 .ToListAsync();
 
             return new PagedResult<TripResponse>
             {
-                Items = trips.Select(t => MapToResponse(t, includePlan: false)).ToList(),
+                Items = trips
+                    .Select(t => MapToResponse(t, includePlan: false))
+                    .ToList(),
+
                 TotalCount = total,
                 Page = req.Page,
                 PageSize = req.PageSize
@@ -239,10 +284,13 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
             return review == null ? null : MapReview(review);
         }
 
-        public async Task<List<TripReviewWithUserResponse>> GetTripReviewsAsync(Guid tripId)
+        public async Task<List<TripReviewWithUserResponse>> GetTripReviewsAsync(Guid userId, Guid tripId)
         {
-            var tripExists = await _db.Trips.AnyAsync(t => t.TripId == tripId);
-            if (!tripExists)
+            var trip = await _db.Trips
+                .FirstOrDefaultAsync(t => t.TripId == tripId)
+                ?? throw new KeyNotFoundException("Trip not found.");
+
+            if (!trip.IsPublic && trip.UserId != userId)
                 throw new KeyNotFoundException("Trip not found.");
 
             return await _db.TripReviews
@@ -296,10 +344,21 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
                 trip.People = req.People.Value;
 
             if (req.TotalBudgetEgp.HasValue)
-                trip.TotalBudgetEgp = req.TotalBudgetEgp.Value;   // .Value هنا لازم تكون موجودة، عشان نحول من int? لـ int
+                trip.TotalBudgetEgp = req.TotalBudgetEgp.Value;
 
             if (req.TotalCost.HasValue)
                 trip.TotalCost = req.TotalCost.Value;
+
+            if (req.Plan.HasValue)
+                TripPlanValidator.Validate(req.Plan.Value);
+
+            if (req.Collected.HasValue)
+            {
+                var rawCollected = req.Collected.Value.GetRawText();
+
+                if (rawCollected.Length > MaxCollectedLength)
+                    throw new ValidationException("Collected payload is too large.");
+            }
 
             if (req.Plan.HasValue)
                 trip.PlanJson = req.Plan.Value.GetRawText();
@@ -475,4 +534,6 @@ private static int ResolveBudget(int? totalBudgetEgp, int? budget, bool allowNul
                     ? city.Trim()
                     : null!;
     }
+    
+
 }

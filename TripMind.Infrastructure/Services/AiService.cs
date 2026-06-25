@@ -1,16 +1,17 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using TripMind.Application.DTOs.Ai;
+using TripMind.Application.Interfaces;
 
 namespace TripMind.Infrastructure.Services
 {
-    public sealed class AiService
+    public sealed class AiService : IAiService
     {
         private readonly HttpClient _http;
         private readonly ILogger<AiService> _logger;
@@ -148,10 +149,11 @@ namespace TripMind.Infrastructure.Services
 
             var json = await response.Content.ReadAsStringAsync();
 
-            _logger.LogInformation("GetPlace Status: {Status} | ContentType: {CT} | Body: {Body}",
-                response.StatusCode,
-                response.Content.Headers.ContentType?.ToString(),
-                Truncate(json, 500));
+            _logger.LogDebug(
+     "GetPlace Status: {Status} | ContentType: {CT} | Length: {Len}",
+     response.StatusCode,
+     response.Content.Headers.ContentType?.ToString(),
+     json.Length);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 throw new KeyNotFoundException("Place not found.");
@@ -206,11 +208,12 @@ namespace TripMind.Infrastructure.Services
 
             var json = await response.Content.ReadAsStringAsync();
 
-            _logger.LogInformation("AI Response | URL: {Url} | Status: {Status} | ContentType: {CT} | Body: {Body}",
-                url,
-                response.StatusCode,
-                response.Content.Headers.ContentType?.ToString(),
-                Truncate(json, 500));
+            _logger.LogDebug(
+    "AI Response | URL: {Url} | Status: {Status} | ContentType: {CT} | Length: {Len}",
+    url,
+    response.StatusCode,
+    response.Content.Headers.ContentType?.ToString(),
+    json.Length);
 
             if (!response.IsSuccessStatusCode)
             {

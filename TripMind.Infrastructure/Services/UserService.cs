@@ -1,15 +1,16 @@
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using TripMind.Application.DTOs.User;
+using TripMind.Application.Interfaces;
 using TripMind.Domain.Entities;
 using TripMind.Infrastructure.Persistence;
 
 namespace TripMind.Infrastructure.Services
 {
-    public sealed class UserService
+    public sealed class UserService : IUserService
     {
         private readonly TripMindDbContext _db;
         public UserService(TripMindDbContext db) => _db = db;
@@ -85,10 +86,33 @@ namespace TripMind.Infrastructure.Services
 
         public async Task DeleteAccountAsync(Guid userId)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.UserId == userId)
                 ?? throw new KeyNotFoundException("User not found.");
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
+
+            try
+            {
+                var favoriteTrips = await _db.FavoriteTrips
+                    .Where(f => f.UserId == userId)
+                    .ToListAsync();
+
+                _db.FavoriteTrips.RemoveRange(favoriteTrips);
+
+                var tripReviews = await _db.TripReviews
+                    .Where(r => r.UserId == userId)
+                    .ToListAsync();
+
+                _db.TripReviews.RemoveRange(tripReviews);
+
+                _db.Users.Remove(user);
+
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException(
+                    "Could not delete account due to related data. Please contact support.", ex);
+            }
         }
 
         private static UserProfileResponse MapToResponse(User u) => new()

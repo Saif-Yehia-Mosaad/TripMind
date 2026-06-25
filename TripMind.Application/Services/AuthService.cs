@@ -1,28 +1,40 @@
-using System;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
 using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 using TripMind.Application.DTOs.Auth;
 using TripMind.Application.Interfaces;
 using TripMind.Domain.Entities;
 
 namespace TripMind.Application.Services
 {
-    public sealed class AuthService
+    public sealed class AuthService : IAuthService
     {
         private readonly IAppDbContext _db;
         private readonly IJwtProvider _jwt;
         private readonly IPasswordHasher _hasher;
         private readonly IEmailSender _email;
+        private readonly IHttpClientFactory _httpFactory;
 
         private const int MaxFailedAttempts = 5;
         private const int LockoutMinutes = 15;
 
-        public AuthService(IAppDbContext db, IJwtProvider jwt, IPasswordHasher hasher, IEmailSender email)
+        public AuthService(
+        IAppDbContext db,
+        IJwtProvider jwt,
+        IPasswordHasher hasher,
+        IEmailSender email,
+        IHttpClientFactory httpFactory)
         {
-            _db = db; _jwt = jwt; _hasher = hasher; _email = email;
+            _db = db;
+            _jwt = jwt;
+            _hasher = hasher;
+            _email = email;
+            _httpFactory = httpFactory;
         }
 
         public async Task<MessageResponse> RegisterAsync(RegisterRequest req, string? ip = null)
@@ -341,33 +353,46 @@ namespace TripMind.Application.Services
 
         public async Task<TokenResponse> FacebookLoginAsync(string accessToken, string? ip = null)
         {
-            string url = $"https://graph.facebook.com/me?fields=id,name,email,picture&access_token={accessToken}";
-            using var http = new System.Net.Http.HttpClient();
-            var res = await http.GetAsync(url);
+            var http = _httpFactory.CreateClient("Facebook");
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                "https://graph.facebook.com/me?fields=id,name,email,picture.type(large)");
+
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue("Bearer", accessToken);
+
+            var res = await http.SendAsync(request);
 
             if (!res.IsSuccessStatusCode)
                 throw new AuthException("Invalid Facebook token.");
 
             var json = await res.Content.ReadAsStringAsync();
-            var fb = System.Text.Json.JsonSerializer.Deserialize<FacebookUserInfo>(json,
-                           new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                       ?? throw new AuthException("Could not parse Facebook response.");
+
+            var fb = System.Text.Json.JsonSerializer.Deserialize<FacebookUserInfo>(
+                json,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                })
+                ?? throw new AuthException("Could not parse Facebook response.");
 
             if (string.IsNullOrEmpty(fb.Email))
                 throw new AuthException("Facebook account has no email. Please use email registration.");
 
             var user = await _db.Users.FirstOrDefaultAsync(u => u.FacebookId == fb.Id)
-                    ?? await _db.Users.FirstOrDefaultAsync(u => u.Email == fb.Email.ToLowerInvariant());
+                ?? await _db.Users.FirstOrDefaultAsync(u => u.Email == fb.Email.ToLowerInvariant());
 
             if (user == null)
             {
                 var now = DateTime.UtcNow;
+
                 user = new User
                 {
                     UserId = Guid.NewGuid(),
                     Email = fb.Email.ToLowerInvariant(),
                     DisplayName = fb.Name ?? fb.Email,
-                    ProfilePhotoUrl = $"https://graph.facebook.com/{fb.Id}/picture?type=large&width=720&height=720&access_token={accessToken}",
+                    ProfilePhotoUrl = fb.Picture?.Data?.Url,
                     FacebookId = fb.Id,
                     PasswordHash = _hasher.Hash(Guid.NewGuid().ToString()),
                     IsActive = true,
@@ -375,13 +400,18 @@ namespace TripMind.Application.Services
                     CreatedAt = now,
                     UpdatedAt = now
                 };
+
                 _db.Users.Add(user);
             }
             else
             {
-                if (user.FacebookId == null) user.FacebookId = fb.Id;
-                if (user.ProfilePhotoUrl == null || user.ProfilePhotoUrl.Contains("50"))
-                    user.ProfilePhotoUrl = $"https://graph.facebook.com/{fb.Id}/picture?type=large&width=720&height=720&access_token={accessToken}";
+                if (user.FacebookId == null)
+                    user.FacebookId = fb.Id;
+
+                if (!string.IsNullOrWhiteSpace(fb.Picture?.Data?.Url))
+                {
+                    user.ProfilePhotoUrl = fb.Picture.Data.Url;
+                }
                 user.IsEmailVerified = true;
                 user.UpdatedAt = DateTime.UtcNow;
             }
@@ -390,6 +420,7 @@ namespace TripMind.Application.Services
                 throw new AuthException("Your account has been deactivated. Please contact support.");
 
             _db.AuditLogs.Add(Audit(user.UserId, "AUTH.FACEBOOK_LOGIN", ip, true));
+
             await _db.SaveChangesAsync();
 
             return await IssueTokenPairAsync(user, ip);

@@ -8,8 +8,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using TripMind.Application.DTOs.User;
 using TripMind.Application.Interfaces;
-using TripMind.Domain.Entities;
-using TripMind.Infrastructure.Services;
+using TripMind.API.Extensions;
 
 namespace TripMind.API.Controllers
 {
@@ -21,11 +20,15 @@ namespace TripMind.API.Controllers
     [Produces("application/json")]
     public sealed class UsersController : ControllerBase
     {
-        private readonly UserService _users;
+        private readonly IUserService _users;
+        private readonly ITripService _trips;
         private readonly IImageService _images;
-        private readonly TripService _trips;
 
-        public UsersController(UserService users, IImageService images, TripService trips)
+
+        public UsersController(
+        IUserService users,
+        IImageService images,
+        ITripService trips)
         {
             _users = users;
             _images = images;
@@ -46,12 +49,14 @@ namespace TripMind.API.Controllers
         [ProducesResponseType(typeof(UploadPhotoResponse), 200)]
         public async Task<IActionResult> UploadPhoto([FromForm] IFormFile file)
         {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Image file is required." });
             var user = await _users.GetProfileAsync(Me());
-            await _images.DeleteAsync(user.ProfilePhotoUrl);
 
             string url;
             try
             {
+                // ?) ??? ?????? ??????? ?????
                 url = await _images.UploadProfilePhotoAsync(file);
             }
             catch (ArgumentException ex)
@@ -63,7 +68,16 @@ namespace TripMind.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
 
+            // ?) ????? ????????? ??????? ??????
             await _users.UpdateProfileAsync(Me(), new UpdateProfileRequest { ProfilePhotoUrl = url });
+
+            // ?) ??? ?????? ??????? ??? ??? ???? ?? ???? ???
+            if (!string.IsNullOrEmpty(user.ProfilePhotoUrl) && user.ProfilePhotoUrl != url)
+            {
+                try { await _images.DeleteAsync(user.ProfilePhotoUrl); }
+                catch { /* ????? ???? ??? ?? ??? — ?????? ??????? ????? orphaned ?????? ?? batch job ?????? */ }
+            }
+
             return Ok(new UploadPhotoResponse(url));
         }
 
@@ -91,11 +105,6 @@ namespace TripMind.API.Controllers
         [HttpGet("me/reviews")]
         public async Task<IActionResult> GetMyReviews() => Ok(await _trips.GetMyReviewsAsync(Me()));
 
-        private Guid Me()
-        {
-            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (id == null) throw new UnauthorizedAccessException();
-            return Guid.Parse(id);
-        }
+        private Guid Me() => User.GetUserId();
     }
 }

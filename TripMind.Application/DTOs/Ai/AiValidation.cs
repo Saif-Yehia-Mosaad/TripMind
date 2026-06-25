@@ -8,13 +8,16 @@ namespace TripMind.Application.DTOs.Ai
     {
         public static ValidationResult? ValidateCity(string? city, ValidationContext ctx)
         {
-            if (string.IsNullOrWhiteSpace(city) || !AiAllowedValues.Cities.Contains(city))
+            // City is optional in some DTOs (e.g. HomeRequest)
+            if (string.IsNullOrWhiteSpace(city))
+                return ValidationResult.Success;
+
+            if (!AiAllowedValues.Cities.Contains(city))
                 return new ValidationResult(
                     $"City '{city}' is not supported. Allowed: {string.Join(", ", AiAllowedValues.Cities)}");
 
             return ValidationResult.Success;
         }
-
         public static ValidationResult? ValidateCities(List<string>? cities, ValidationContext ctx)
         {
             if (cities == null || cities.Count == 0)

@@ -100,8 +100,10 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(f => f.FavoritePlaceId).HasDefaultValueSql("NEWID()");
             e.Property(f => f.PlaceId).IsRequired().HasMaxLength(200);
             e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
-            e.HasOne(f => f.User).WithMany()
-             .HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(f => f.User)
+    .WithMany()
+    .HasForeignKey(f => f.UserId)
+.OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(f => new { f.UserId, f.PlaceId }).IsUnique()
              .HasDatabaseName("UIX_FavoritePlaces_UserPlace");
         }
@@ -116,9 +118,9 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             e.Property(f => f.FavoriteTripId).HasDefaultValueSql("NEWID()");
             e.Property(f => f.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             e.HasOne(f => f.User)
-              .WithMany()
-              .HasForeignKey(f => f.UserId)
-              .OnDelete(DeleteBehavior.NoAction);
+     .WithMany()
+     .HasForeignKey(f => f.UserId)
+     .OnDelete(DeleteBehavior.NoAction);
 
             e.HasOne(f => f.Trip)
              .WithMany()
@@ -143,8 +145,10 @@ namespace TripMind.Infrastructure.Persistence.Configurations
             .WithMany(t => t.TripReviews)
             .HasForeignKey(r => r.TripId)
             .OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(r => r.User).WithMany()
-             .HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(r => r.User)
+  .WithMany()
+  .HasForeignKey(r => r.UserId)
+  .OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(r => new { r.TripId, r.UserId }).IsUnique()
              .HasDatabaseName("UIX_TripReviews_TripUser");
         }

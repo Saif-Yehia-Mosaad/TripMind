@@ -1,11 +1,13 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using TripMind.Application.DTOs.Favorite;
+using TripMind.Application.Interfaces;
 using TripMind.Infrastructure.Services;
+using TripMind.API.Extensions;
 
 namespace TripMind.API.Controllers
 {
@@ -14,12 +16,19 @@ namespace TripMind.API.Controllers
     [Authorize]
     public sealed class FavoritesController : ControllerBase
     {
-        private readonly FavoritesService _favorites;
-        public FavoritesController(FavoritesService favorites) => _favorites = favorites;
+        private readonly IFavoritesService _favorites;
 
+        public FavoritesController(IFavoritesService favorites)
+        {
+            _favorites = favorites;
+        }
         [HttpGet("places")]
-        public async Task<IActionResult> GetPlaces() =>
-            Ok(await _favorites.GetFavoritePlacesAsync(Me()));
+        public async Task<IActionResult> GetPlaces(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            return Ok(await _favorites.GetFavoritePlacesAsync(Me(), page, pageSize));
+        }
 
         [HttpPost("places")]
         public async Task<IActionResult> AddPlace([FromBody] FavoritePlaceRequest req) =>
@@ -70,14 +79,6 @@ namespace TripMind.API.Controllers
             }
         }
 
-        private Guid Me()
-        {
-            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (!Guid.TryParse(id, out var userId))
-                throw new UnauthorizedAccessException("Invalid user token.");
-
-            return userId;
-        }
+        private Guid Me() => User.GetUserId();
     }
 }

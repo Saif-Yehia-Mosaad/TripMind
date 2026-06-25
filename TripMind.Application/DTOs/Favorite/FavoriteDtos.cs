@@ -7,6 +7,7 @@ namespace TripMind.Application.DTOs.Favorite
     public sealed class FavoritePlaceRequest
     {
         [Required]
+        [MaxLength(200)]
         public string PlaceId { get; set; } = null!;
     }
 

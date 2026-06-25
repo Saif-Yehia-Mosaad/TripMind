@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 using TripMind.Application.DTOs.Ai;
+using TripMind.Application.Interfaces;
 using TripMind.Infrastructure.Services;
 
 namespace TripMind.API.Controllers
@@ -16,10 +17,12 @@ namespace TripMind.API.Controllers
     [Authorize]
     public sealed class AiController : ControllerBase
     {
-        private readonly AiService _ai;
+        private readonly IAiService _ai;
         private readonly IWebHostEnvironment _env;
 
-        public AiController(AiService ai, IWebHostEnvironment env)
+        public AiController(
+            IAiService ai,
+            IWebHostEnvironment env)
         {
             _ai = ai;
             _env = env;

@@ -30,34 +30,46 @@ namespace TripMind.Infrastructure.Security
             var expiry = DateTime.UtcNow.AddMinutes(AccessTokenMinutes);
 
             var claims = new List<Claim>
-{
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-
-            new(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
-            new(JwtRegisteredClaimNames.Name, user.DisplayName),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat,
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
-            ClaimValueTypes.Integer64),
-        new("lang", user.LanguagePreference),
-        new("governorate", user.HomeGovernorate ?? string.Empty),
-};
+            {
+                new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email),
+                new(JwtRegisteredClaimNames.Name, user.DisplayName),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new(
+                    JwtRegisteredClaimNames.Iat,
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
+                    ClaimValueTypes.Integer64),
+                new("lang", user.LanguagePreference),
+                new("governorate", user.HomeGovernorate ?? string.Empty),
+            };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var token = new JwtSecurityToken(_issuer, _audience, claims,
-                notBefore: DateTime.UtcNow, expires: expiry, signingCredentials: creds);
 
-            return (new JwtSecurityTokenHandler().WriteToken(token), AccessTokenMinutes * 60);
+            var token = new JwtSecurityToken(
+                _issuer,
+                _audience,
+                claims,
+                notBefore: DateTime.UtcNow,
+                expires: expiry,
+                signingCredentials: creds);
+
+            return (
+                new JwtSecurityTokenHandler().WriteToken(token),
+                AccessTokenMinutes * 60);
         }
 
         public string GenerateRefreshToken()
         {
             var bytes = RandomNumberGenerator.GetBytes(64);
-            return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
+            return Convert.ToBase64String(bytes)
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
         }
 
-        public int GetRefreshTokenLifetimeDays(bool rememberMe) => rememberMe ? 30 : 7;
+        public int GetRefreshTokenLifetimeDays(bool rememberMe)
+            => rememberMe ? 30 : 7;
     }
 }

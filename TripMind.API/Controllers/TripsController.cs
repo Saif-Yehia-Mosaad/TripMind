@@ -1,13 +1,15 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using TripMind.Application.DTOs.Trip;
+using TripMind.Application.Interfaces;
 using TripMind.Domain.Enums;
-using TripMind.Infrastructure.Services;
+using TripMind.API.Extensions;
+
 
 namespace TripMind.API.Controllers
 {
@@ -16,12 +18,14 @@ namespace TripMind.API.Controllers
     [Authorize]
     public sealed class TripsController : ControllerBase
     {
-        private readonly TripService _trips;
+        private readonly ITripService _trips;
 
-        public TripsController(TripService trips) => _trips = trips;
+        public TripsController(ITripService trips)
+        {
+            _trips = trips;
+        }
 
-        private Guid Me => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
+        private Guid Me => User.GetUserId();
         [HttpPost]
         [ProducesResponseType(typeof(TripResponse), StatusCodes.Status201Created)]
         public async Task<IActionResult> Create([FromBody] CreateTripRequest req)
@@ -138,13 +142,12 @@ namespace TripMind.API.Controllers
         }
 
         [HttpGet("{id:guid}/reviews")]
-        [AllowAnonymous]
         [ProducesResponseType(typeof(List<TripReviewWithUserResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetReviews(Guid id)
         {
             try
             {
-                return Ok(await _trips.GetTripReviewsAsync(id));
+                return Ok(await _trips.GetTripReviewsAsync(Me, id));
             }
             catch (KeyNotFoundException)
             {

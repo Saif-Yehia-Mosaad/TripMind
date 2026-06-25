@@ -1,6 +1,9 @@
-public enum TripStatus
+namespace TripMind.Domain.Enums
 {
-    Draft = 0,
-    InProgress = 1,
-    Complete = 2
+    public enum TripStatus
+    {
+        Draft = 0,
+        InProgress = 1,
+        Complete = 2
+    }
 }

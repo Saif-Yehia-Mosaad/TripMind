@@ -1,21 +1,22 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using TripMind.Application.DTOs.Favorite;
+using TripMind.Application.DTOs.Trip;
 using TripMind.Application.Interfaces;
 using TripMind.Domain.Entities;
 
 namespace TripMind.Infrastructure.Services
 {
-    public sealed class FavoritesService
+    public sealed class FavoritesService : IFavoritesService
     {
         private readonly IAppDbContext _db;
-        private readonly AiService _ai;
+        private readonly IAiService _ai;
 
-        public FavoritesService(IAppDbContext db, AiService ai)
+        public FavoritesService(IAppDbContext db, IAiService ai)
         {
             _db = db;
             _ai = ai;
@@ -55,16 +56,28 @@ namespace TripMind.Infrastructure.Services
             await _db.SaveChangesAsync();
         }
 
-        public async Task<List<FavoritePlaceResponse>> GetFavoritePlacesAsync(Guid userId)
+        public async Task<PagedResult<FavoritePlaceResponse>> GetFavoritePlacesAsync(
+    Guid userId,
+    int page = 1,
+    int pageSize = 20)
         {
-            var favorites = await _db.FavoritePlaces
+            var query = _db.FavoritePlaces
                 .Where(f => f.UserId == userId)
-                .OrderByDescending(f => f.CreatedAt)
+                .OrderByDescending(f => f.CreatedAt);
+
+            var total = await query.CountAsync();
+
+            var favorites = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            // بدل sequential await في loop (N requests متتالية)، بقت parallel
+            using var throttler = new SemaphoreSlim(5);
+
             var tasks = favorites.Select(async fav =>
             {
+                await throttler.WaitAsync();
+
                 try
                 {
                     var place = await _ai.GetPlaceByIdAsync(fav.PlaceId);
@@ -72,14 +85,23 @@ namespace TripMind.Infrastructure.Services
                 }
                 catch (KeyNotFoundException)
                 {
-                    // المكان ممكن يكون مسحوه من مصدر الـ AI الخارجي
-                    // - بدل ما نكسّر الليستة كلها، نتجاهله بس
                     return null;
+                }
+                finally
+                {
+                    throttler.Release();
                 }
             });
 
             var results = await Task.WhenAll(tasks);
-            return results.Where(r => r != null).ToList()!;
+
+            return new PagedResult<FavoritePlaceResponse>
+            {
+                Items = results.Where(r => r != null).ToList()!,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         public async Task<FavoriteTripResponse> AddFavoriteTripAsync(Guid userId, Guid tripId)

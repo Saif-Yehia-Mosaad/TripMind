@@ -5,21 +5,38 @@ namespace TripMind.Application.DTOs.Auth
 {
     public sealed class RegisterRequest
     {
-        [Required][MaxLength(100)] public string DisplayName { get; set; } = null!;
+        [Required]
+        [MaxLength(100)]
+        [RegularExpression(
+    @"^[^<>{}]*$",
+    ErrorMessage = "DisplayName cannot contain HTML special characters.")]
+        public string DisplayName { get; set; } = null!;
         [Required]
         [EmailAddress]
         [MaxLength(256)]
         [RegularExpression(@"^[^@]+@[^@]+\.[^@]{2,}$", ErrorMessage = "Please provide a valid email address.")]
         public string Email { get; set; } = null!;
-        [Required][MinLength(8)] public string Password { get; set; } = null!;
-        [Required][Compare(nameof(Password))] public string ConfirmPassword { get; set; } = null!;
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string Password { get; set; } = null!;
+
+        [Required]
+        [Compare(nameof(Password))]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string ConfirmPassword { get; set; } = null!;
         public bool RememberMe { get; set; }
     }
 
     public sealed class LoginRequest
     {
         [Required][EmailAddress] public string Email { get; set; } = null!;
-        [Required] public string Password { get; set; } = null!;
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string Password { get; set; } = null!;
+
         public bool RememberMe { get; set; }
     }
 
@@ -42,9 +59,21 @@ namespace TripMind.Application.DTOs.Auth
 
     public sealed class ChangePasswordRequest
     {
-        [Required] public string CurrentPassword { get; set; } = null!;
-        [Required][MinLength(8)] public string NewPassword { get; set; } = null!;
-        [Required][Compare(nameof(NewPassword))] public string ConfirmNewPassword { get; set; } = null!;
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string CurrentPassword { get; set; } = null!;
+
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string NewPassword { get; set; } = null!;
+
+        [Required]
+        [Compare(nameof(NewPassword))]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string ConfirmNewPassword { get; set; } = null!;
     }
 
     public sealed class TwoFactorInitiateRequest { }
@@ -56,7 +85,10 @@ namespace TripMind.Application.DTOs.Auth
 
     public sealed class TwoFactorDisableRequest
     {
-        [Required] public string Password { get; set; } = null!;
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string Password { get; set; } = null!;
     }
 
     public sealed class RefreshTokenRequest
@@ -96,8 +128,16 @@ namespace TripMind.Application.DTOs.Auth
     {
         [Required][EmailAddress] public string Email { get; set; } = null!;
         [Required] public string ResetToken { get; set; } = null!;
-        [Required][MinLength(8)] public string NewPassword { get; set; } = null!;
-        [Required][Compare(nameof(NewPassword))] public string ConfirmNewPassword { get; set; } = null!;
+        [Required]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string NewPassword { get; set; } = null!;
+
+        [Required]
+        [Compare(nameof(NewPassword))]
+        [MinLength(8)]
+        [MaxLength(128)]
+        public string ConfirmNewPassword { get; set; } = null!;
     }
 
     public sealed class TokenResponse

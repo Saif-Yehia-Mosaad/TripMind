@@ -1,11 +1,13 @@
-using System;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using TripMind.Application.DTOs.Auth;
+using TripMind.Application.Interfaces;
 using TripMind.Application.Services;
+using TripMind.API.Extensions;
 
 namespace TripMind.API.Controllers
 {
@@ -14,9 +16,12 @@ namespace TripMind.API.Controllers
     [Produces("application/json")]
     public sealed class AuthController : ControllerBase
     {
-        private readonly AuthService _auth;
+        private readonly IAuthService _auth;
 
-        public AuthController(AuthService auth) => _auth = auth;
+        public AuthController(IAuthService auth)
+        {
+            _auth = auth;
+        }
 
         [HttpPost("register")]
         [ProducesResponseType(typeof(MessageResponse), 201)]
@@ -151,8 +156,7 @@ namespace TripMind.API.Controllers
             Name = User.FindFirstValue(ClaimTypes.Name)
         });
 
-        private Guid Me() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
+        private Guid Me() => User.GetUserId();
         private string? Ip() =>
             HttpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var fwd)
                 ? fwd.ToString().Split(',')[0].Trim()
