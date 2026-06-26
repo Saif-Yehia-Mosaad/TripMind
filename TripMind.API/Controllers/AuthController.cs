@@ -8,6 +8,7 @@ using TripMind.Application.DTOs.Auth;
 using TripMind.Application.Interfaces;
 using TripMind.Application.Services;
 using TripMind.API.Extensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace TripMind.API.Controllers
 {
@@ -17,10 +18,12 @@ namespace TripMind.API.Controllers
     public sealed class AuthController : ControllerBase
     {
         private readonly IAuthService _auth;
+        private readonly IAppDbContext _db;
 
-        public AuthController(IAuthService auth)
+        public AuthController(IAuthService auth, IAppDbContext db)
         {
             _auth = auth;
+            _db = db;
         }
 
         [HttpPost("register")]
@@ -155,6 +158,22 @@ namespace TripMind.API.Controllers
             Email = User.FindFirstValue(ClaimTypes.Email),
             Name = User.FindFirstValue(ClaimTypes.Name)
         });
+
+        [HttpDelete("admin/users")]
+        public async Task<IActionResult> DeleteAllUsers()
+        {
+            _db.RefreshTokens.RemoveRange(await _db.RefreshTokens.ToListAsync());
+            _db.AuditLogs.RemoveRange(await _db.AuditLogs.ToListAsync());
+
+            _db.Users.RemoveRange(await _db.Users.ToListAsync());
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "All users deleted successfully."
+            });
+        }
 
         private Guid Me() => User.GetUserId();
         private string? Ip() =>

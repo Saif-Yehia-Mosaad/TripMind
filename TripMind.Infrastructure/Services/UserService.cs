@@ -84,28 +84,30 @@ namespace TripMind.Infrastructure.Services
             await _db.SaveChangesAsync();
         }
 
+        // UserService.DeleteAccountAsync
         public async Task DeleteAccountAsync(Guid userId)
         {
-            var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.UserId == userId)
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId)
                 ?? throw new KeyNotFoundException("User not found.");
 
             try
             {
+                var favoritePlaces = await _db.FavoritePlaces
+                    .Where(f => f.UserId == userId)
+                    .ToListAsync();
+                _db.FavoritePlaces.RemoveRange(favoritePlaces);
+
                 var favoriteTrips = await _db.FavoriteTrips
                     .Where(f => f.UserId == userId)
                     .ToListAsync();
-
                 _db.FavoriteTrips.RemoveRange(favoriteTrips);
 
                 var tripReviews = await _db.TripReviews
                     .Where(r => r.UserId == userId)
                     .ToListAsync();
-
                 _db.TripReviews.RemoveRange(tripReviews);
 
                 _db.Users.Remove(user);
-
                 await _db.SaveChangesAsync();
             }
             catch (DbUpdateException ex)
@@ -114,7 +116,6 @@ namespace TripMind.Infrastructure.Services
                     "Could not delete account due to related data. Please contact support.", ex);
             }
         }
-
         private static UserProfileResponse MapToResponse(User u) => new()
         {
             UserId = u.UserId,

@@ -27,6 +27,11 @@ namespace TripMind.API.Middleware
 
         private async Task HandleAsync(HttpContext ctx, Exception ex)
         {
+            if (ctx.Response.HasStarted)
+                return;
+
+            var env = ctx.RequestServices.GetRequiredService<IWebHostEnvironment>();
+
             (int status, string title) = ex switch
             {
                 AuthException => (401, "Authentication failed."),
@@ -43,20 +48,20 @@ namespace TripMind.API.Middleware
             ctx.Response.ContentType = "application/problem+json";
             ctx.Response.StatusCode = status;
 
-            var isDev = ctx.RequestServices
-                .GetRequiredService<IWebHostEnvironment>()
-                .IsDevelopment();
-
-            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            var response = new
             {
                 type = $"https://httpstatuses.com/{status}",
                 title,
                 status,
-                // الفرق هنا: التفاصيل الكاملة فقط في Development
-                detail = isDev ? ex.ToString() : (status == 500 ? "An internal error occurred." : ex.Message),
+                detail = env.IsDevelopment() ? ex.ToString() : "An internal error occurred.",
                 instance = ctx.Request.Path.Value,
-                traceId = ctx.TraceIdentifier   // استخدم ده مع الـ logs للـ debugging بدل كشف التفاصيل
-            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                traceId = ctx.TraceIdentifier
+            };
+
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(
+                response,
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+            ));
         }
     }
 }

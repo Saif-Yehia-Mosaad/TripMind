@@ -104,7 +104,7 @@ namespace TripMind.Infrastructure.Services
             trip.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-            return MapToResponse(trip, includePlan: false);
+            return MapToResponse(trip, includePlan: true);
         }
 
         public async Task<TripResponse> GetTripByIdAsync(Guid userId, Guid tripId)
@@ -179,7 +179,7 @@ namespace TripMind.Infrastructure.Services
             return new PagedResult<TripResponse>
             {
                 Items = trips
-                    .Select(t => MapToResponse(t, includePlan: false))
+                    .Select(t => MapToResponse(t, includePlan: true))
                     .ToList(),
 
                 TotalCount = total,
@@ -208,7 +208,7 @@ namespace TripMind.Infrastructure.Services
             trip.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-            return MapToResponse(trip, includePlan: false);
+            return MapToResponse(trip, includePlan: true);
         }
 
         public async Task<string> CreateShareLinkAsync(Guid userId, Guid tripId)
