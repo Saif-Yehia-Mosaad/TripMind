@@ -155,7 +155,7 @@ namespace TripMind.API.Controllers
             }
         }
 
-        // أضف ده في TripsController.cs، بعد GetById وقبل UpdatePlan مثلاً
+        // ??? ?? ?? TripsController.cs? ??? GetById ???? UpdatePlan ?????
 
         [HttpDelete("{id:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]

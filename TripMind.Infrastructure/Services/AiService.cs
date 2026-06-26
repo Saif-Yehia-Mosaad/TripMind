@@ -34,7 +34,7 @@ namespace TripMind.Infrastructure.Services
             _recommendBase = config["Ai:RecommendBase"] ?? throw new InvalidOperationException("Ai:RecommendBase not configured.");
         }
 
-        // ── Generate Plan ─────────────────────────────────────────────────────
+        // -- Generate Plan -----------------------------------------------------
         public async Task<JsonElement> GeneratePlanAsync(GeneratePlanRequest req)
         {
             var payload = new
@@ -50,7 +50,7 @@ namespace TripMind.Infrastructure.Services
             return await PostAsync(_plannerUrl, payload);
         }
 
-        // ── ChatBot ───────────────────────────────────────────────────────────
+        // -- ChatBot -----------------------------------------------------------
         public async Task<JsonElement> ChatAsync(ChatRequest req)
         {
             var payload = new
@@ -72,7 +72,7 @@ namespace TripMind.Infrastructure.Services
             return await PostAsync(_chatUrl, payload);
         }
 
-        // ── EditBot ───────────────────────────────────────────────────────────
+        // -- EditBot -----------------------------------------------------------
         public async Task<JsonElement> EditAsync(EditRequest req)
         {
             var payload = new
@@ -91,7 +91,7 @@ namespace TripMind.Infrastructure.Services
             return await PostAsync(_editUrl, payload);
         }
 
-        // ── Recommendations ───────────────────────────────────────────────────
+        // -- Recommendations ---------------------------------------------------
         public async Task<JsonElement> HomeAsync(HomeRequest req)
             => await PostAsync($"{_recommendBase}/places/home",
                 new { city = req.City, seed = req.Seed });
@@ -181,7 +181,7 @@ namespace TripMind.Infrastructure.Services
             }
         }
 
-        // ── Shared PostAsync ──────────────────────────────────────────────────
+        // -- Shared PostAsync --------------------------------------------------
         private async Task<JsonElement> PostAsync(string url, object payload)
         {
             var content = new StringContent(
@@ -238,26 +238,26 @@ namespace TripMind.Infrastructure.Services
             if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value;
             return value[..maxLength];
         }
-       public async Task<JsonElement> NearbyAsync(NearbyRequest req)
-    => await PostAsync($"{_recommendBase}/places/nearby", new
-    {
-        user_lat = req.UserLat,
-        user_lng = req.UserLng,
-        radius_km = req.RadiusKm,
-        filters = req.Filters == null ? null : new
-        {
-            category = req.Filters.Category,
-            interests = req.Filters.Interests,
-            min_rating = req.Filters.MinRating,
-            max_rating = req.Filters.MaxRating,
-            min_price = req.Filters.MinPrice,
-            max_price = req.Filters.MaxPrice,
-            is_hidden_gem = req.Filters.HiddenGem,
-            sort_by = req.Filters.SortBy,
-            order = req.Filters.Order
-        },
-        page = req.Page,
-        limit = req.Limit
-    });
+        public async Task<JsonElement> NearbyAsync(NearbyRequest req)
+     => await PostAsync($"{_recommendBase}/places/nearby", new
+     {
+         user_lat = req.UserLat,
+         user_lng = req.UserLng,
+         radius_km = req.RadiusKm,
+         filters = req.Filters == null ? null : new
+         {
+             category = req.Filters.Category,
+             interests = req.Filters.Interests,
+             min_rating = req.Filters.MinRating,
+             max_rating = req.Filters.MaxRating,
+             min_price = req.Filters.MinPrice,
+             max_price = req.Filters.MaxPrice,
+             is_hidden_gem = req.Filters.HiddenGem,
+             sort_by = req.Filters.SortBy,
+             order = req.Filters.Order
+         },
+         page = req.Page,
+         limit = req.Limit
+     });
     }
 }

@@ -21,7 +21,7 @@ namespace TripMind.API.Middleware
                     _store.TryRemove(key, out var _);
         }, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
 
-        private const int MaxRequests   = 100;
+        private const int MaxRequests = 100;
         private const int WindowSeconds = 60;
 
         public RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger)
@@ -31,8 +31,8 @@ namespace TripMind.API.Middleware
 
         public async Task InvokeAsync(HttpContext ctx)
         {
-            string ip  = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            var    now = DateTime.UtcNow;
+            string ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var now = DateTime.UtcNow;
 
             _store.AddOrUpdate(ip, _ => (1, now), (_, existing) =>
                 (now - existing.WindowStart).TotalSeconds >= WindowSeconds

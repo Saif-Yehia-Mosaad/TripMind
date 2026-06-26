@@ -33,9 +33,6 @@ namespace TripMind.Domain.Entities
         public DateTime UpdatedAt { get; set; }
 
         public User User { get; set; } = null!;
-        public Budget? Budget { get; set; }
-        public ICollection<TripDay> TripDays { get; set; } = new List<TripDay>();
-        public ICollection<TripLocation> TripLocations { get; set; } = new List<TripLocation>();
         public ICollection<TripReview> TripReviews { get; set; } = new List<TripReview>();
     }
 }

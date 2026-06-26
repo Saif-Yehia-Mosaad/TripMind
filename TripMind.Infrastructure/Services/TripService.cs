@@ -534,6 +534,6 @@ namespace TripMind.Infrastructure.Services
                     ? city.Trim()
                     : null!;
     }
-    
+
 
 }

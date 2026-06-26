@@ -35,21 +35,21 @@ namespace TripMind.Infrastructure.Email
             SendAsync(
                 toEmail,
                 displayName,
-                "TripMind — Password Reset Code",
+                "TripMind � Password Reset Code",
                 $"<p>Hi {displayName},</p><p>Your password reset code is: <strong>{otp}</strong></p><p>Valid for 15 minutes.</p>");
 
         public Task SendEmailVerificationOtpAsync(string toEmail, string displayName, string otp) =>
             SendAsync(
                 toEmail,
                 displayName,
-                "TripMind — Verify Your Email",
+                "TripMind � Verify Your Email",
                 $"<p>Hi {displayName},</p><p>Your verification code is: <strong>{otp}</strong></p><p>Valid for 15 minutes.</p>");
 
         public Task SendTwoFactorOtpAsync(string toEmail, string displayName, string otp) =>
             SendAsync(
                 toEmail,
                 displayName,
-                "TripMind — Two-Factor Authentication Code",
+                "TripMind � Two-Factor Authentication Code",
                 $"<p>Hi {displayName},</p><p>Your 2FA code is: <strong>{otp}</strong></p><p>Valid for 10 minutes.</p>");
 
         private async Task SendAsync(

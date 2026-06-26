@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 
 namespace TripMind.Application.DTOs.Ai
 {
-    // ── Generate Plan ─────────────────────────────────────────────────────────
+    // -- Generate Plan ---------------------------------------------------------
     public sealed class GeneratePlanRequest
     {
 
@@ -28,7 +28,7 @@ namespace TripMind.Application.DTOs.Ai
         public string? MustInclude { get; set; }
     }
 
-    // ── ChatBot ───────────────────────────────────────────────────────────────
+    // -- ChatBot ---------------------------------------------------------------
     public sealed class ChatRequest
     {
         [Required]
@@ -57,7 +57,7 @@ namespace TripMind.Application.DTOs.Ai
         public List<string> MustInclude { get; set; } = new();
     }
 
-    // ── EditBot ───────────────────────────────────────────────────────────────
+    // -- EditBot ---------------------------------------------------------------
     public sealed class EditRequest
     {
         [Required]
@@ -151,7 +151,7 @@ namespace TripMind.Application.DTOs.Ai
         public string Content { get; set; } = null!;
     }
 
-    // ── Recommendations ───────────────────────────────────────────────────────
+    // -- Recommendations -------------------------------------------------------
     public sealed class HomeRequest
     {
 
@@ -164,20 +164,20 @@ namespace TripMind.Application.DTOs.Ai
     /// <summary>
     /// Request for POST /places/recommend.
     ///
-    /// IMPORTANT — Recommendation engine behavior (per AI team):
+    /// IMPORTANT � Recommendation engine behavior (per AI team):
     /// 1. All places are ranked by cosine similarity between
-    ///    `selected_categories`/interests and each place's data — highest
+    ///    `selected_categories`/interests and each place's data � highest
     ///    similarity first.
     /// 2. The top `pool_size` results (default 50) are taken from that
     ///    ranked list.
-    /// 3. The pool is then shuffled using `seed`. Same seed → same shuffle
-    ///    order every time (stable pagination). Different/omitted seed →
+    /// 3. The pool is then shuffled using `seed`. Same seed ? same shuffle
+    ///    order every time (stable pagination). Different/omitted seed ?
     ///    different shuffle.
     /// 4. If `pool_size` is large (e.g. 500), the pool can include places
     ///    with a similarity score of 0 (i.e. places that don't actually
-    ///    match `selected_categories` at all) — and after shuffling, one of
+    ///    match `selected_categories` at all) � and after shuffling, one of
     ///    those irrelevant places can end up first. This is expected
-    ///    behavior of the AI ranking engine, NOT a backend bug — the
+    ///    behavior of the AI ranking engine, NOT a backend bug � the
     ///    backend only forwards `pool_size`/`seed` and returns the response
     ///    as-is (JsonElement passthrough, no re-sorting on our side).
     ///

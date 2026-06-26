@@ -78,20 +78,20 @@ namespace TripMind.API.Middleware
                 ? fwd.ToString().Split(',')[0].Trim()
                 : ctx.Connection.RemoteIpAddress?.ToString();
 
-            string? ua   = ctx.Request.Headers["User-Agent"].ToString();
-            bool    ok   = ctx.Response.StatusCode is >= 200 and < 300;
-            string  path = ctx.Request.Path.Value ?? string.Empty;
+            string? ua = ctx.Request.Headers["User-Agent"].ToString();
+            bool ok = ctx.Response.StatusCode is >= 200 and < 300;
+            string path = ctx.Request.Path.Value ?? string.Empty;
 
             db.AuditLogs.Add(new AuditLog
             {
                 AuditLogId = Guid.NewGuid(),
-                UserId     = userId,
+                UserId = userId,
                 EventType = DeriveEvent(path, ctx.Request.Method, ctx.Response.StatusCode),
-                IpAddress  = ip,
-                UserAgent  = ua?.Length > 512 ? ua[..512] : ua,
-                Success    = ok,
-                Details    = ok ? null : $"HTTP {ctx.Response.StatusCode}",
-                CreatedAt  = DateTime.UtcNow
+                IpAddress = ip,
+                UserAgent = ua?.Length > 512 ? ua[..512] : ua,
+                Success = ok,
+                Details = ok ? null : $"HTTP {ctx.Response.StatusCode}",
+                CreatedAt = DateTime.UtcNow
             });
 
             await db.SaveChangesAsync();

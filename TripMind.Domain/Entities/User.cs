@@ -34,7 +34,6 @@ namespace TripMind.Domain.Entities
 
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();
         public ICollection<UserInterest> UserInterests { get; set; } = new List<UserInterest>();
-        public ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
         public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }

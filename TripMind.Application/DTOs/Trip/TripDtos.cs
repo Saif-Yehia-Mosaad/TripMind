@@ -154,7 +154,7 @@ namespace TripMind.Application.DTOs.Trip
         public string Status { get; init; } = null!;
         public string? CoverImageUrl { get; init; }
         public int PlacesCount { get; init; }
-        public JsonElement? Plan { get; init; }   // الخطة نفسها مقصودة تتشارك، فالـ Plan يفضل موجود
+        public JsonElement? Plan { get; init; }   // ????? ????? ?????? ??????? ???? Plan ???? ?????
     }
     public sealed class TripResponse
     {

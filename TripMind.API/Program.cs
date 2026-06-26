@@ -33,7 +33,7 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 2 * 1024 * 1024; // 2 MB
 });
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<TripMindDbContext>());
-builder.Services.AddScoped<IJwtProvider,    JwtProvider>();
+builder.Services.AddScoped<IJwtProvider, JwtProvider>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 
@@ -60,18 +60,18 @@ builder.Services.AddScoped<IEmailSender>(sp =>
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException(
         "Jwt:Secret is not configured. Set it via dotnet user-secrets (dev) " +
-        "or an environment variable / secret manager (prod) — never hardcode it in source.");
+        "or an environment variable / secret manager (prod) � never hardcode it in source.");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt => opt.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer           = true,
-        ValidateAudience         = true,
-        ValidateLifetime         = true,
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ClockSkew                = TimeSpan.Zero,
-        ValidIssuer              = builder.Configuration["Jwt:Issuer"],
-        ValidAudience            = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+        ClockSkew = TimeSpan.Zero,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
     });
 
 builder.Services.AddAuthorization();
@@ -92,7 +92,7 @@ builder.Services.AddControllers()
                 .Where(e => e.Value?.Errors.Count > 0)
                 .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
             return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new
-                { title = "Validation failed.", status = 400, errors });
+            { title = "Validation failed.", status = 400, errors });
         };
     });
 
@@ -112,14 +112,17 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title       = "TripMind API",
-        Version     = "v1",
+        Title = "TripMind API",
+        Version = "v1",
         Description = "AI-Driven Egyptian Domestic Tourism Planner"
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Name = "Authorization", Type = SecuritySchemeType.Http,
-        Scheme = "bearer", BearerFormat = "JWT", In = ParameterLocation.Header
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {{
@@ -144,7 +147,7 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Dat
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogCritical(ex, "Database migration failed at startup.");
-        throw; // فشل سريع وواضح بدل تشغيل API بقاعدة بيانات غير متوافقة
+        throw; // ??? ???? ????? ??? ????? API ?????? ?????? ??? ???????
     }
 }
 
@@ -160,8 +163,8 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.MapGet("/", () => Results.Redirect("/swagger"));
-
+app.MapGet("/", () => Results.Redirect("/swagger"))
+   .ExcludeFromDescription();
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();

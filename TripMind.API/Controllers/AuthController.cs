@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -159,9 +160,19 @@ namespace TripMind.API.Controllers
             Name = User.FindFirstValue(ClaimTypes.Name)
         });
 
+        // SECURITY: this wipes the entire Users/RefreshTokens/AuditLogs tables.
+        // There is no role/Admin system in this project yet, so it cannot be
+        // safely exposed in production behind [Authorize(Roles = "Admin")].
+        // Locking it to the Development environment closes the open production
+        // hole (previously: no [Authorize] at all, callable anonymously) while
+        // keeping it for local test-data resets. Remove entirely once a real
+        // admin/RBAC system exists, or move it behind a one-off internal script.
         [HttpDelete("admin/users")]
-        public async Task<IActionResult> DeleteAllUsers()
+        public async Task<IActionResult> DeleteAllUsers([FromServices] IWebHostEnvironment env)
         {
+            if (!env.IsDevelopment())
+                return NotFound();
+
             _db.RefreshTokens.RemoveRange(await _db.RefreshTokens.ToListAsync());
             _db.AuditLogs.RemoveRange(await _db.AuditLogs.ToListAsync());
 
