@@ -101,11 +101,12 @@ var allowedOrigins = builder.Configuration
     .Get<string[]>() ?? Array.Empty<string>();
 
 builder.Services.AddCors(opt =>
-    opt.AddDefaultPolicy(p => p
-        .WithOrigins(allowedOrigins)
-        .AllowAnyHeader()
-        .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-        .AllowCredentials()));
+    opt.AddDefaultPolicy(policy =>
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

@@ -10,22 +10,38 @@ namespace TripMind.Application.DTOs.Ai
     // -- Generate Plan ---------------------------------------------------------
     public sealed class GeneratePlanRequest
     {
-
         [Required]
         [MaxLength(100)]
         [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateCity))]
         public string City { get; set; } = null!;
 
-        [Required][Range(1, 7)] public int Days { get; set; }
-        [Required][Range(1, 10000000)] public int Budget { get; set; }
-        [Required][Range(1, 50)] public int People { get; set; }
+        [Required]
+        [Range(1, 7)]
+        public int Days { get; set; }
+
+        [Required]
+        [Range(1, 10000000)]
+        public int Budget { get; set; }
+
+        [Required]
+        [Range(1, 50)]
+        public int People { get; set; }
 
         [Required]
         [CustomValidation(typeof(AiValidation), nameof(AiValidation.ValidateDisplayInterests))]
         public List<string> Interests { get; set; } = new();
 
-        [MaxLength(500)]
-        public string? MustInclude { get; set; }
+        public List<MustIncludePlace>? MustInclude { get; set; } = new();
+    }
+
+    public sealed class MustIncludePlace
+    {
+        [Required]
+        public string Name { get; set; } = null!;
+
+        public string? PlaceId { get; set; }
+
+        public string? Type { get; set; }
     }
 
     // -- ChatBot ---------------------------------------------------------------

@@ -44,7 +44,12 @@ namespace TripMind.Infrastructure.Services
                 budget = req.Budget,
                 people = req.People,
                 interests = req.Interests,
-                must_include = req.MustInclude
+                mustinclude = req.MustInclude?.Select(x => new
+                {
+                    name = x.Name,
+                    place_id = x.PlaceId,
+                    type = x.Type
+                }).ToList()
             };
             _logger.LogInformation("GeneratePlan: {City} {Days}d {People}p", req.City, req.Days, req.People);
             return await PostAsync(_plannerUrl, payload);
