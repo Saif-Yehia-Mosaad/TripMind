@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace TripMind.Application.DTOs.Ai
+﻿namespace TripMind.Application.DTOs.Ai
 {
     public static class AiAllowedValues
     {
@@ -9,13 +6,13 @@ namespace TripMind.Application.DTOs.Ai
         {
             "Cairo","Giza","Alexandria","Luxor","Aswan",
             "Sharm El Sheikh","Hurghada","Port Said",
-            "Ismailia","Marsa Matrouh","Fayoum"
+            "Ismailia","Marsa Matrouh","Fayoum","Dahab"
         };
 
         public static readonly HashSet<string> DisplayInterests = new(StringComparer.Ordinal)
         {
             "Arts & Crafts","Bakery","Beaches & Water","Cafe","Entertainment",
-            "History & Antiquities","Mosques & Churches","Music","Nature",
+            "History & Antiquities","Hotel","Mosques & Churches","Music","Nature",
             "Nightlife","Outdoor","Park","Restaurants","Seafood",
             "Shopping","Street Food","Tourism","Waterfront"
         };
@@ -24,7 +21,7 @@ namespace TripMind.Application.DTOs.Ai
         public static readonly HashSet<string> PlaceCategorySlugs = new(StringComparer.OrdinalIgnoreCase)
         {
             "historical_sites","arts_culture","cafe","food","food_cafes",
-            "beaches","shopping","nature","religious_sites","entertainment"
+            "beaches","shopping","nature","religious_sites","entertainment","hotel"
         };
 
         public static readonly HashSet<string> SortByValues = new(StringComparer.OrdinalIgnoreCase)
