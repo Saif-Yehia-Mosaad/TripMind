@@ -167,25 +167,53 @@ namespace TripMind.API.Controllers
         // hole (previously: no [Authorize] at all, callable anonymously) while
         // keeping it for local test-data resets. Remove entirely once a real
         // admin/RBAC system exists, or move it behind a one-off internal script.
-        [HttpDelete("admin/users")]
-        public async Task<IActionResult> DeleteAllUsers([FromServices] IWebHostEnvironment env)
-        {
-            if (!env.IsDevelopment())
-                return NotFound();
+        //[HttpDelete("admin/users")]
+        //public async Task<IActionResult> DeleteAllUsers([FromServices] IWebHostEnvironment env)
+        //{
+        //    if (!env.IsDevelopment())
+        //        return NotFound();
 
-            _db.RefreshTokens.RemoveRange(await _db.RefreshTokens.ToListAsync());
-            _db.AuditLogs.RemoveRange(await _db.AuditLogs.ToListAsync());
+        //    _db.RefreshTokens.RemoveRange(await _db.RefreshTokens.ToListAsync());
+        //    _db.AuditLogs.RemoveRange(await _db.AuditLogs.ToListAsync());
 
-            _db.Users.RemoveRange(await _db.Users.ToListAsync());
+        //    _db.Users.RemoveRange(await _db.Users.ToListAsync());
 
-            await _db.SaveChangesAsync();
+        //    await _db.SaveChangesAsync();
 
-            return Ok(new
-            {
-                message = "All users deleted successfully."
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        message = "All users deleted successfully."
+        //    });
+        //}
 
+        //[HttpDelete("admin/user/{email}")]
+        //public async Task<IActionResult> DeleteUser(string email)
+        //{
+        //    var user = await _db.Users
+        //        .FirstOrDefaultAsync(u => u.Email == email.ToLower());
+
+        //    if (user == null)
+        //        return NotFound();
+
+        //    var refreshTokens = await _db.RefreshTokens
+        //        .Where(x => x.UserId == user.UserId)
+        //        .ToListAsync();
+
+        //    var auditLogs = await _db.AuditLogs
+        //        .Where(x => x.UserId == user.UserId)
+        //        .ToListAsync();
+
+        //    _db.RefreshTokens.RemoveRange(refreshTokens);
+        //    _db.AuditLogs.RemoveRange(auditLogs);
+        //    _db.Users.Remove(user);
+
+        //    await _db.SaveChangesAsync();
+
+        //    return Ok(new
+        //    {
+        //        message = $"{email} deleted successfully"
+        //    });
+        //}
         private Guid Me() => User.GetUserId();
         private string? Ip() =>
             HttpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var fwd)
